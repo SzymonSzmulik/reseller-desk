@@ -3221,11 +3221,20 @@ function viewSettings(){
       <p style="margin:0">Have Claude put your listings straight onto eBay as drafts, ready for you to check and publish. It's free, but it takes a bit of setup, so it's here for people who want it.</p>
       <div class="note info"><b>Computer only.</b> The eBay connector runs on your computer, so sending drafts only works in the Claude desktop app on that computer, while it's switched on. It doesn't work from your phone. Everything else in Reseller Desk works on your phone as normal.</div>
       <label class="ck"><input type="checkbox" id="ebOn" ${S.ebayOn?"checked":""}> Show "Send to eBay as a draft" buttons</label>
+      <div class="card stack" style="gap:8px"><b>What you need first</b>
+        <ul class="steps" style="list-style:disc;padding-left:20px;margin:0">
+          <li>A <b>computer</b> (Windows or Mac) with the <b>Claude desktop app</b>. Not your phone.</li>
+          <li>Your <b>eBay seller account</b>, and a free <b>eBay developer account</b> at <a href="https://developer.ebay.com" target="_blank" rel="noopener">developer.ebay.com</a>. The two logins can use different emails.</li>
+          <li><b>Node.js</b>, a free helper program from <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>. Claude will tell you which one to get.</li>
+          <li>About <b>30 to 45 minutes</b>, once. After that it just works.</li>
+        </ul>
+        <p class="muted" style="margin:0;font-size:13.5px">Your eBay keys stay on your computer. Claude never needs you to paste them into the chat.</p>
+      </div>
       <div class="card stack" style="gap:10px"><b>How to set it up</b>
         <ol class="steps">
-          <li><span>Get a free eBay developer account at <a href="https://developer.ebay.com" target="_blank" rel="noopener">developer.ebay.com</a>. eBay checks it, which can take a day or two.</span></li>
-          <li><span>On a computer with the Claude desktop app, start a chat and type: <b>"Help me install the free eBay connector, step by step."</b> Tap <b>Copy</b> below to get the full message.</span></li>
-          <li><span>Tick the box above. On any item, tap <b>Send to eBay as a draft</b>, then paste into Claude on that computer.</span></li>
+          <li><span>Tap <b>Copy the setup message</b> below.</span></li>
+          <li><span>On your computer, open the <b>Claude desktop app</b>, start a new chat and paste it. Claude takes you through it one small step at a time, and you say <b>"done"</b> after each one.</span></li>
+          <li><span>When it's finished, tick the box above. On any item, tap <b>Send to eBay as a draft</b>.</span></li>
         </ol>
         <button class="btn small ghost" id="ebCopy" style="align-self:flex-start">Copy the setup message</button>
         <p class="muted" style="margin:0;font-size:13.5px">It uses a free, open-source connector made by an independent developer, not eBay. It runs on your computer, so sending drafts works from Claude on that computer.</p>
@@ -3623,14 +3632,22 @@ function addPhotosTo(r, host){
 
 
 /* ---------- EBAY DRAFTS (optional): listing saved next to the photos, sent through the person's own eBay connector in Claude ---------- */
-const EBAY_SETUP_TXT = `Help me install the free eBay connector, step by step. It's this open-source project: https://github.com/YosefHayim/ebay-api-mcp-server
+const EBAY_SETUP_TXT = `Help me install the free eBay connector on this computer, step by step. It's this open-source project: https://github.com/YosefHayim/ebay-mcp (download it as a ZIP from the green Code button, no Git needed).
 
 I'm not technical, so:
-- Tell me one step at a time and wait for me to say "done" before the next.
-- Explain any technical words.
-- I already have (or have applied for) a free eBay developer account at developer.ebay.com.
+- Tell me ONE step at a time and wait for me to say "done" before the next.
+- Explain any technical words, and say exactly what I should see on screen.
 - At the end, connect it to this Claude desktop app and check it works by listing my eBay account details.
-Never ask me to paste my eBay Cert ID or password into this chat. Tell me where to put them instead.`;
+- NEVER ask me to paste my eBay Cert ID, Client Secret, password or sign-in code into this chat. Tell me to paste them only into the black Command Prompt window.
+
+Please follow this order, because it avoids the usual traps:
+1. Check I have Node.js 24 or newer (type: node -v). If not, send me to nodejs.org.
+2. In the extracted folder, run: npm install -g pnpm, then pnpm install, then pnpm run build. (Plain npm install fails.)
+3. On developer.ebay.com, make a PRODUCTION keyset. It shows "Your keyset is currently disabled" until I open Alerts & Notifications and switch on "Exempted from Marketplace Account Deletion" (it's only my own account and I store no one's data).
+4. On the User Tokens (eBay Sign-In) tab, with Production selected, click Add eBay Redirect URL. Display title: Reseller Desk. For privacy policy, auth accepted and auth declined, use any https web page I own or https://szymonszmulik.github.io. Then tick the OAuth Enabled circle and press Test Sign-in. Note the RuName (it's not secret).
+5. Run pnpm run setup. Production, my marketplace, then App ID, Cert ID and RuName (copy and paste them, because "i" and "l" look alike). Pick "Generate OAuth URL".
+6. IMPORTANT: the wizard's own sign-in link asks for too many permissions and eBay rejects it (invalid_scope or invalid_request). Instead, build me a short link myself from my App ID and RuName (I can tell you those, they're not secret): https://auth.ebay.com/oauth2/authorize?client_id=APPID&redirect_uri=RUNAME&response_type=code&scope=https://api.ebay.com/oauth/api_scope%20https://api.ebay.com/oauth/api_scope/sell.inventory%20https://api.ebay.com/oauth/api_scope/sell.account%20https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly . I sign in with my seller account, agree, then copy the whole address of the page I land on and paste it ONCE, only into the black window, within a couple of minutes.
+7. Skip the "install AI skills" question. Then fully quit and reopen the Claude desktop app, start a new chat, and check it by listing my eBay account details. It must only ever create drafts, never publish.`;
 async function saveListing(r, L){
   const fid = await itemFolder(r, true);
   const data = {sku:r.sku, title:L.title, condition:L.condition, condition_description:L.condition_description, item_specifics:L.item_specifics, description_html:L.description_html, saved:new Date().toISOString()};
@@ -3673,7 +3690,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.37";
+const APP_VERSION = "2026.11.08.38";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3696,6 +3713,7 @@ const WHATS_NEW = [
     {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
     {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
   {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
+  {v:"2026.11.08.38", items:[{text:"Send drafts to eBay now lists what you need first, and the setup message walks you through the tricky parts."}]},
   {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
