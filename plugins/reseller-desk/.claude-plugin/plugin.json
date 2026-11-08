@@ -1,0 +1,17 @@
+{
+  "name": "reseller-desk",
+  "version": "0.4.0",
+  "description": "Reseller Desk: the app (home screen, stock, sales, profit, group chat, miles, make-your-own features) plus chat skills that write listings from photos and log buys, sales, returns and expenses into your own Google Sheet.",
+  "author": {
+    "name": "Szymon Szmulik"
+  },
+  "keywords": [
+    "ebay",
+    "vinted",
+    "reselling",
+    "carboot",
+    "google sheets",
+    "listings"
+  ],
+  "license": "MIT"
+}
