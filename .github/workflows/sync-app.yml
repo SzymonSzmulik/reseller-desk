@@ -1,0 +1,28 @@
+name: Sync app from Send updates to everyone
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-app
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the newest app
+        run: python3 .github/sync_app.py
+      - name: Save it
+        run: |
+          if git diff --quiet; then echo "Nothing new"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -am "$MSG"
+          git push

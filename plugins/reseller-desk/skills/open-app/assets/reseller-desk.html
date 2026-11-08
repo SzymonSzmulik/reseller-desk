@@ -3064,7 +3064,7 @@ function viewSettings(){
     
     </div></details>
     ${S.publisher?`<details class="grp"><summary><span>Send updates to everyone<span class="gh">Version ${APP_VERSION}</span></span></summary><div class="stack">
-      <p style="margin:0">Everyone who installed the app gets an "Update now" button next time they open it. Send this after I've made changes you're happy with.</p>
+      <p style="margin:0">Everyone who installed the app gets an "Update now" button next time they open it, and the plugin on GitHub picks it up within about 15 minutes. Send this after I've made changes you're happy with.</p>
       <p class="muted" style="margin:0;font-size:14px">Spreadsheet updates go with it: ${esc(TRACKER_CHECKS.map(c => c.name).join(", "))}. Each person's app offers them for their own template-copy trackers, with a backup first.</p>
       <label class="f">What's new <small>Optional, one short line they'll see.</small><input type="text" id="pubNotes" placeholder="e.g. New charts and photo folders"></label>
       <label class="f">New plugin version <small>Only if you also put a new plugin on GitHub (e.g. 0.5.0). Everyone gets a "Get it" banner.</small><input type="text" id="pubPlug" inputmode="decimal" placeholder="Leave empty if not"></label>
@@ -3471,7 +3471,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.22";
+const APP_VERSION = "2026.11.08.23";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3536,7 +3536,7 @@ async function publishUpdate(){
     const plug = ($("#pubPlug")?.value || "").trim(); if (plug){ if (!/^\d+\.\d+\.\d+$/.test(plug)) throw {code:"tool_error", message:"the plugin version should look like 0.5.0"}; cells[4] = plug; }
     const reqs = rowRequests(sid, 1, cells); if (prev[0] && prev[0] !== APP_VERSION) reqs.push(...rowRequests(sid, 2, {0:String(prev[0]), 1:String(prev[1]||""), 2:String(prev[2]||""), 3:String(prev[3]||"")}));
     await batch(UPD_SHEET, reqs);
-    m.innerHTML = `<div class="note ok"><b>Sent.</b> Everyone's app will offer version ${esc(APP_VERSION)} next time they open it.</div>`; b.textContent = "Sent ✓"; b.disabled = true; return;
+    m.innerHTML = `<div class="note ok"><b>Sent.</b> Everyone's app will offer version ${esc(APP_VERSION)} next time they open it. The plugin on GitHub updates itself within about 15 minutes.</div>`; b.textContent = "Sent ✓"; b.disabled = true; return;
   }catch(e){ m.innerHTML = `<div class="note err">${esc(e?.code==="fetch" ? "Couldn't get the app file. Reopen the app and try again." : mcpMsg(e, GD))}</div>`; }
   busy(b, false);
 }
