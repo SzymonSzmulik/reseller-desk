@@ -464,7 +464,7 @@ const DEFAULT_MSGS = [
 const DEFAULTS = {
   v:2, trackers:[], active:"", username:"", boxes:"", skuOn:true, sources:"", sells:"eBay",
   carbootDays:[6,0], returnsWorking:false, noPhotosLine:true, titleWords:"", postage:"Royal Mail Tracked 48",
-  descExtra:"", cardNote:"", messages:null, photosOn:true, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, layout:null, layoutV:2, updatedAt:0
+  descExtra:"", cardNote:"", messages:null, photosOn:true, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, colDefs:{}, layout:null, layoutV:2, updatedAt:0
 };
 const SHOW_DEF = {sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, tabs:true, sale:true};
 const SHOW_LIST = [["sold","Sold"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["tabs","Your tabs"],["sale","Log a sale"]];
@@ -484,7 +484,7 @@ function migrate(o){
   if (!Array.isArray(s.custom)) s.custom = [];
   if (!Array.isArray(s.messages)) s.messages = DEFAULT_MSGS.map(m => ({...m}));
   if (!Array.isArray(s.cats) || !s.cats.length) s.cats = CATS.slice();
-  s.show = {...SHOW_DEF, ...(s.show||{})}; s.carboot = s.carboot !== false; s.askFee = s.askFee !== false; migratePlaces(s); if (!s.layout || typeof s.layout!=="object" || Array.isArray(s.layout) || s.layoutV !== 2){ s.layout = {}; s.layoutV = 2; }
+  s.show = {...SHOW_DEF, ...(s.show||{})}; if (!s.colDefs || typeof s.colDefs !== "object" || Array.isArray(s.colDefs)) s.colDefs = {}; s.carboot = s.carboot !== false; s.askFee = s.askFee !== false; migratePlaces(s); if (!s.layout || typeof s.layout!=="object" || Array.isArray(s.layout) || s.layoutV !== 2){ s.layout = {}; s.layoutV = 2; }
   if (!s.trackers.some(t => t.id===s.active)) s.active = s.trackers[0]?.id || "";
   return s;
 }
@@ -645,7 +645,22 @@ async function extraCols(t, force){
   return (EXTRA[t.id] = out);
 }
 const xKey = n => String(n).trim().toLowerCase();
-const extraInputs = (cols, vals={}) => cols.length ? `<div class="grid2">${cols.map(c => `<label class="f">${esc(c.name)}<input type="text" data-xc="${esc(c.name)}" value="${esc(vals[xKey(c.name)] ?? "")}"></label>`).join("")}</div>` : "";
+/* a column can have CHOICES (then it's a dropdown everywhere it shows, with "Other" to type something else) and says WHERE it shows */
+const COL_WHERE = [["new","New item"],["sold","Mark as sold"],["edit","Edit details"]];
+const colDef = n => (S.colDefs && S.colDefs[xKey(n)]) || {};
+const colOpts = n => Array.isArray(colDef(n).options) ? colDef(n).options : [];
+const colShows = (n, where) => (Array.isArray(colDef(n).show) ? colDef(n).show : ["new","edit"]).includes(where);
+const parseOpts = v => [...new Set(String(v||"").split(/[,\n]/).map(x => x.trim()).filter(Boolean))].slice(0, 40);
+const whereChips = (id, sel) => `<div class="chips" data-multi id="${id}">${COL_WHERE.map(([k,l]) => `<button type="button" class="chip" data-v="${k}" aria-pressed="${sel.includes(k)}">${l}</button>`).join("")}</div>`;
+const readWhere = id => [...document.querySelectorAll(`#${id} button`)].filter(b => b.getAttribute("aria-pressed")==="true").map(b => b.dataset.v);
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".chips[data-multi] button"); if (b) b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")!=="true"); });
+document.addEventListener("change", e => { const sel = e.target.closest && e.target.closest("select[data-xs]"); if (!sel) return; const t = sel.parentElement.querySelector("[data-xc]"); if (!t) return;
+  if (sel.value === "__other"){ t.hidden = false; t.focus(); } else { t.value = sel.value; t.hidden = true; t.dispatchEvent(new Event("input", {bubbles:true})); } });
+const extraInputs = (cols, vals={}, where) => { if (where) cols = cols.filter(c => colShows(c.name, where));
+  return cols.length ? `<div class="grid2">${cols.map(c => { const v = String(vals[xKey(c.name)] ?? ""), o = colOpts(c.name);
+    if (!o.length) return `<label class="f">${esc(c.name)}<input type="text" data-xc="${esc(c.name)}" value="${esc(v)}"></label>`;
+    const known = v === "" || o.includes(v);
+    return `<label class="f">${esc(c.name)}<select data-xs><option value="">-</option>${o.map(x => `<option ${x===v?"selected":""}>${esc(x)}</option>`).join("")}<option value="__other" ${known?"":"selected"}>Other (type it)…</option></select><input type="text" data-xc="${esc(c.name)}" value="${esc(v)}" placeholder="Type it" ${known?"hidden":""}></label>`; }).join("")}</div>` : ""; };
 const readExtra = host => { const o = {}; (host ? host.querySelectorAll("[data-xc]") : []).forEach(i => { o[xKey(i.dataset.xc)] = i.value.trim(); }); return o; };
 const eTab = t => shp(t) ? (shp(t).e ? shp(t).e.tab : null) : "Expenses";
 const MONTH_N = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
@@ -1078,8 +1093,11 @@ async function newSku(box){
   for (let k=0;k<4000;k++){ const n = String(Math.floor(Math.random()*10000)).padStart(4,"0"); if(!used.has(n)) return make(n); }
   for (;;){ const n = String(10000+Math.floor(Math.random()*90000)); if(!used.has(n)) return make(n); }
 }
-async function firstEmptyRow(id, tab, col, max){
-  const v = await getVals(id, `${tab}!${col}1:${col}${max}`); let last = 0; v.forEach((r,i)=>{ if (String(r[0]??"").trim()) last = i; }); return last+1;
+/* the first empty row nearest the top, after the heading row(s), so a new item never lands way down the sheet */
+async function firstEmptyRow(id, tab, col, max, start=1){
+  const v = await getVals(id, `${tab}!${col}1:${col}${max}`);
+  for (let i=start; i<max; i++){ if (!String((v[i]||[])[0]??"").trim()) return i; }
+  let last = 0; v.forEach((r,i)=>{ if (String(r[0]??"").trim()) last = i; }); return last+1;
 }
 
 /* ---------- WIDGETS, iPhone style: Home, Stock, Sold, Expenses and More are grids of fixed-size tiles.
@@ -1851,6 +1869,16 @@ async function addTab(t, name, heads){
   delete idCache[t.id]; if (!heads.length) return; const sid = await tabId(t.id, name);
   await batch(t.id, [{updateCells:{start:{sheetId:sid,rowIndex:0,columnIndex:0}, rows:[{values:heads.map(x => ({userEnteredValue:{stringValue:x}, userEnteredFormat:{textFormat:{bold:true}}}))}], fields:"userEnteredValue,userEnteredFormat.textFormat.bold"}}]);
 }
+function colPanel(name, after){
+  const d = colDef(name), sel = Array.isArray(d.show) ? d.show : ["new","edit"];
+  openPanel(`<h2 style="margin-top:0">${esc(name)}</h2><div class="stack">
+    <label class="f">Choices <small>One per line or separated by commas. With choices you pick from a dropdown (or choose Other to type something). With none, you just type it.</small><textarea id="cdOpts" style="min-height:110px" placeholder="e.g. Royal Mail, Evri, DPD">${esc(colOpts(name).join("\n"))}</textarea></label>
+    <div><div class="lab">Show it in</div>${whereChips("cdShow", sel)}</div>
+    <p class="muted" style="margin:0;font-size:14.5px">This changes the app only. Your spreadsheet isn't touched.</p>
+    <button class="btn wide" id="cdSave">Save</button><button class="btn wide ghost" id="cdClose">Cancel</button></div>`);
+  $("#cdClose").onclick = closePanel;
+  $("#cdSave").onclick = () => { S.colDefs[xKey(name)] = {options:parseOpts($("#cdOpts").value), show:readWhere("cdShow")}; save(); closePanel(); toast("Saved"); if (after) after(); };
+}
 function viewSheet(){
   const own = S.trackers.filter(t => !handsOff(t)), ids = own.filter(t => !shp(t)).map(t => t.id);
   /* only trackers whose layout can change are offered; the others are named so it's clear they're left alone */
@@ -1863,12 +1891,21 @@ function viewSheet(){
     <div class="card stack" style="gap:8px"><b>Your trackers</b>${S.trackers.map(t => `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(tName(t))}</b><div class="muted" style="font-size:14px">${handsOff(t) ? "Hands-off: new rows only, its layout is never changed" : shp(t) ? "Your own layout: new rows only" : "Kept in step with your settings"}</div></div>${shp(t) ? "" : `<button class="btn small ghost" data-ho="${esc(t.id)}">${handsOff(t) ? "Allow changes" : "Make hands-off"}</button>`}</div>`).join("")}
       <div id="shSyncMsg"></div><button class="btn small ghost" id="shSync">Update dropdowns now</button></div>
     <div class="card stack"><b>Add a column</b><p class="muted" style="margin:0;font-size:14.5px">Goes on the Sales tab after your last column. Nothing you've typed moves.</p>
-      <label class="f">Column name<input type="text" id="shCol" maxlength="40" placeholder="e.g. Postage service"></label>${pickTo("shc")}<div id="shColMsg"></div><button class="btn wide" id="shColGo" ${can.length?"":"disabled"}>Add column</button><p class="muted" style="margin:0;font-size:13.5px">It then shows in New item and Edit details, and Claude fills it in chat.</p></div>
+      <label class="f">Column name<input type="text" id="shCol" maxlength="40" placeholder="e.g. Postage service"></label>
+      <label class="f">Choices <small>Optional. Separate with commas, e.g. Royal Mail, Evri, DPD. Leave empty to just type it each time.</small><input type="text" id="shColOpts" placeholder="e.g. Royal Mail, Evri, DPD"></label>
+      <div><div class="lab">Show it in</div>${whereChips("shColShow", ["new","edit"])}</div>${pickTo("shc")}<div id="shColMsg"></div><button class="btn wide" id="shColGo" ${can.length?"":"disabled"}>Add column</button><p class="muted" style="margin:0;font-size:13.5px">Claude fills it in chat too. You can change the choices and where it shows any time, under Your columns.</p></div>
+    <div class="card stack"><b>Your columns</b><p class="muted" style="margin:0;font-size:14.5px">Change a column's choices, or where it shows.</p><div id="shCols" class="stack" style="gap:10px"><span class="muted">Loading…</span></div></div>
     <div class="card stack"><b>Add a tab</b><label class="f">Tab name<input type="text" id="shTab" maxlength="40" placeholder="e.g. Repairs"></label>
       <label class="f">Column headings <small>Separate with commas.</small><input type="text" id="shHeads" placeholder="e.g. Date, Item, Part, Cost"></label>${pickTo("sht")}<div id="shTabMsg"></div><button class="btn wide" id="shTabGo" ${can.length?"":"disabled"}>Add tab</button><button class="btn wide ghost" id="shTabsOpen">Open Your tabs</button></div>
     <div class="card stack"><b>Mileage</b><p class="muted" style="margin:0;font-size:14.5px">Log business trips and claim them as an expense.</p><button class="btn wide ghost" id="shMiles">Open Miles</button></div>
   </div>`;
   bindTargets("shc"); bindTargets("sht");
+  const loadCols = async () => { const seen = new Map(); for (const t of S.trackers){ try{ for (const c of await extraCols(t)) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
+    const h = $("#shCols"); if (!h) return;
+    h.innerHTML = seen.size ? [...seen.values()].map(c => { const o = colOpts(c.name), wh = COL_WHERE.filter(([k]) => colShows(c.name, k)).map(x => x[1]).join(", ") || "Nowhere";
+      return `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(c.name)}</b><div class="muted" style="font-size:14px">${o.length ? esc(o.slice(0,4).join(", ")) + (o.length>4 ? "…" : "") : "Type it each time"} · ${esc(wh)}</div></div><button class="btn small ghost" data-cd="${esc(c.name)}">Edit</button></div>`; }).join("") : `<p class="muted" style="margin:0">You haven't added any columns yet.</p>`;
+    h.querySelectorAll("[data-cd]").forEach(b => b.onclick = () => colPanel(b.dataset.cd, loadCols)); };
+  loadCols();
   $("#shMiles").onclick = () => go("miles"); $("#shTabsOpen").onclick = () => go("tabs");
   $("#view").querySelectorAll("[data-ho]").forEach(b => b.onclick = () => { const t = S.trackers.find(x => x.id === b.dataset.ho); if (!t) return; t.handsOff = !handsOff(t); save(); toast(t.handsOff ? `${tName(t)} is hands-off` : `${tName(t)} can be changed`); viewSheet(); });
   $("#shSync").onclick = async () => { const b = $("#shSync"); busy(b, true, "Updating…"); const r = await sheetSync(true); busy(b, false); $("#shSyncMsg").innerHTML = `<div class="note ok">${r.length ? r.map(esc).join("<br>") : "Nothing to update."}</div>`; };
@@ -1876,7 +1913,8 @@ function viewSheet(){
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a column name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
     for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); delete EXTRA[t.id]; done.push(`${tName(t)}: column ${colL(c)}. It now shows in New item and Edit details`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
-    busy(b, false); SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; };
+    if (done.some(x => /column [A-Z]+\.|already has it/.test(x))){ S.colDefs[xKey(name)] = {options:parseOpts($("#shColOpts").value), show:readWhere("shColShow")}; save(); }
+    busy(b, false); SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; loadCols(); };
   $("#shTabGo").onclick = async () => { const b = $("#shTabGo"), m = $("#shTabMsg"), name = $("#shTab").value.trim().replace(/[\[\]*?:\/\\']/g, ""), heads = list($("#shHeads").value).slice(0, 26); const ts = readTargets("sht", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a tab name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
@@ -2412,7 +2450,7 @@ function renderListing(){
   $("#startOver").onclick = () => { ADD = freshAdd(); viewAdd(); };
   /* columns they added themselves: one box each, filled into every tracker that has a column with that name */
   (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
-    const h = $("#fExtra"); if (h && seen.size) h.innerHTML = `<div class="lab">Your own columns <small>Optional. Saved into the matching columns of your sheet.</small></div>${extraInputs([...seen.values()], ADD.extra || {})}`;
+    const h = $("#fExtra"); if (h && seen.size) h.innerHTML = `<div class="lab">Your own columns <small>Optional. Saved into the matching columns of your sheet.</small></div>${extraInputs([...seen.values()], ADD.extra || {}, "new")}`;
     if (h) h.oninput = () => { ADD.extra = readExtra(h); }; })();
   if (ADD.saved){ $("#saveItem").disabled = true; $("#saveItem").textContent = "Saved ✓"; }
 }
@@ -2430,7 +2468,7 @@ async function saveItem(){
     if (!ADD.sku && skuOn()) ADD.sku = await newSku(ADD.box);
     const done = [];
     for (const t of targets){
-      const sid = await tabId(t.id, sTab(t)); const row = shp(t) ? await firstEmptyRow(t.id, qt(sTab(t)), colL(shp(t).s.c[0]), 1000) : await firstEmptyRow(t.id, "Sales", "A", 997);
+      const sid = await tabId(t.id, sTab(t)); const row = shp(t) ? await firstEmptyRow(t.id, qt(sTab(t)), colL(shp(t).s.c[0]), 1000, sHr(t)+1) : await firstEmptyRow(t.id, "Sales", "A", 997, 1);
       const xs = {}; try{ for (const c of await extraCols(t)){ const v = XIN[xKey(c.name)]; if (v) xs[100 + c.col] = v; } }catch{}
       await batch(t.id, rowRequests(sid, row, mapCells(t, {0:title, 1:"Listed", 2:num(f.cost), 4:0, 5:0, 7:{date:serial(d)}, ...(ADD.sku ? {10:ADD.sku} : {}), 11:ADD.from, ...xs})));
       const back = await salesRow(t, row);
@@ -2593,7 +2631,7 @@ function editPanel(r){
     ${targetChips("edit", [S.active], "Change in")}
     <div id="xMsg"></div><button class="btn wide" id="xSave">Save changes</button><button class="btn wide ghost" id="xClose">Cancel</button></div>`);
   bindTargets("edit"); $("#xClose").onclick = closePanel;
-  let XOLD = {}; extraRowVals(activeT(), r).then(({cols, vals}) => { XOLD = vals; const h = $("#xExtra"); if (h) h.innerHTML = extraInputs(cols, vals); }).catch(() => {});
+  let XOLD = {}; extraRowVals(activeT(), r).then(({cols, vals}) => { XOLD = vals; const h = $("#xExtra"); if (h) h.innerHTML = extraInputs(cols, vals, "edit"); }).catch(() => {});
   $("#xSave").onclick = async () => {
     const btn = $("#xSave"), msg = $("#xMsg"); const cells = {}; const bad = [];
     const str = (col, id, old) => { const v = $(id).value.trim(); if (v !== String(old||"").trim()) cells[col] = v===""?null:v; };
@@ -2716,12 +2754,15 @@ async function soldPanel(r){
       ${sells().length>1?`<div><div class="lab">Where did it sell?</div><div class="chips" id="sVia">${sells().map((s,i)=>`<button class="chip" data-v="${esc(s)}" aria-pressed="${i===0}">${esc(s)}</button>`).join("")}</div></div>`:""}
       <label class="ck"><input type="checkbox" id="sCard" checked> Make the thank-you card too</label>
       <div class="grid2" id="sCardInfo"><label class="f">Buyer's name <small>For the card</small><input type="text" id="sBuyer" autocomplete="off"></label><label class="f">Order number <small>For the card</small><input type="text" id="sOrder" autocomplete="off"></label></div>
+      <div id="sExtra"></div>
       ${targetChips("sold", defIds())}
       <div id="sMsg"></div>
       <button class="btn wide" id="sSave">Mark as sold</button>
       <div id="cardBox"></div>
       <button class="btn wide ghost" id="sClose">Close</button></div>`);
   bindTargets("sold"); SOLD_VIA = sells()[0]; pick("#sVia", v => SOLD_VIA = v);
+  (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
+    const h = $("#sExtra"), cols = [...seen.values()].filter(c => colShows(c.name, "sold")); if (h && cols.length) h.innerHTML = `<div class="lab">Your own columns <small>Optional.</small></div>${extraInputs(cols, {}, "sold")}`; })();
   $("#sCard").onchange = e => { $("#sCardInfo").hidden = !e.target.checked; };
   $("#sClose").onclick = () => { closePanel(); if (CUR==="stock"||CUR==="sold") go(CUR); }; $("#sSave").onclick = saveSold;
   $("#shot") && ($("#shot").onchange = readShot);
@@ -2754,13 +2795,14 @@ async function saveSold(){
   if (price===""){ msg.innerHTML = `<div class="note warn">Type what it sold for.</div>`; return; }
   if (!d){ msg.innerHTML = `<div class="note warn">Type the date sold as DD/MM/YYYY.</div>`; return; }
   if (!targets.length){ msg.innerHTML = `<div class="note warn">Pick at least one tracker.</div>`; return; }
-  busy(btn, true, "Saving…"); const done = [], noVia = [];
+  busy(btn, true, "Saving…"); const done = [], noVia = []; const XS = readExtra($("#sExtra"));
   try{
     for (const t of targets){
       const sid = await tabId(t.id, sTab(t)); const v = await salesV(t);
       const i = findRow(v, r, "Listed");
       if (i<0){ done.push(`${tName(t)}: not found, left alone`); continue; }
       const c = {1:"Sold", 3:num(price), 4:num($("#sShip").value), 5:num($("#sFees").value), 8:{date:serial(d)}};
+      try{ for (const xc of await extraCols(t)){ const v = XS[xKey(xc.name)]; if (v) c[100 + xc.col] = v; } }catch{}
       const vc = await viaCol(t.id); if (vc>=0 && SOLD_VIA) c[100+vc] = SOLD_VIA; else if (vc<0 && sells().length>1) noVia.push(tName(t));
       await batch(t.id, rowRequests(sid, i, mapCells(t, c)));
       const back = await salesRow(t, i);
@@ -3633,7 +3675,7 @@ async function saveListing(r, L){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.41";
+const APP_VERSION = "2026.11.08.42";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3656,7 +3698,8 @@ const WHATS_NEW = [
     {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
     {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
   {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
-  {v:"2026.11.08.41", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
+  {v:"2026.11.08.42", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
+  {v:"2026.11.08.42", items:[{text:"New items now go in the first empty row near the top of your sheet, not at the bottom."},{text:"Columns you add can have choices (a dropdown) and you pick where they show: New item, Mark as sold or Edit details. Change them any time in More › Your spreadsheet › Your columns.", show:"sheet"}]},
   {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
