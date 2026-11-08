@@ -2319,7 +2319,7 @@ function viewAdd(){
   if (!ADD.targets) ADD.targets = defIds();
   V.innerHTML = `<h1>New item</h1><p class="lead">Add photos and a few details. Claude writes the listing, then one tap saves it to your tracker.</p>
   <div class="stack">
-    <div><label class="drop" for="ph"><strong>Add photos</strong><span class="muted">Front, back, label and any damage. Up to 6.</span></label>
+    <div><label class="drop" for="ph"><strong>Add photos</strong><span class="muted">Front, back, label and any damage. Up to 24. Claude looks at the first 6, and all of them are saved.</span></label>
       <input id="ph" type="file" accept="image/*" multiple hidden><div class="thumbs" id="thumbs" style="margin-top:8px"></div>
       ${imgOK?"":`<p class="muted" style="font-size:14px;margin:6px 0 0" id="imgNote">${sample?"":"Photos need this app open on claude.ai."}</p>`}</div>
     <label class="f">What is it? <small>Optional. Model number, or anything Claude can't see.</small><input type="text" id="what" placeholder="e.g. Canon PowerShot A85 with 32MB CF card"></label>
@@ -2341,7 +2341,7 @@ function viewAdd(){
     <div id="out" class="stack"></div>
   </div>`;
   renderThumbs();
-  $("#ph").onchange = e => { ADD.photos = [...ADD.photos, ...e.target.files].slice(0,6); renderThumbs(); e.target.value=""; };
+  $("#ph").onchange = e => { ADD.photos = [...ADD.photos, ...e.target.files].slice(0,24); renderThumbs(); e.target.value=""; };
   $("#status").onclick = e => { const b = e.target.closest("button"); if(!b) return; ADD.status = b.dataset.v; $("#status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); $("#faultsWrap").hidden = ADD.status!=="Faulty"; };
   pick("#box", v => ADD.box = v);
   $("#from").onclick = e => { const b = e.target.closest("button"); if (!b) return;
@@ -2377,7 +2377,7 @@ async function writeListing(){
   const status = ADD.status;
   const statusWord = status==="Tested working" ? "TESTED WORKING" : status==="Faulty" ? "FAULTY – SOLD FOR SPARES OR REPAIR" : "UNTESTED – SOLD FOR SPARES OR REPAIR";
   const prompt = `You write eBay UK listings for a reseller. Use UK spelling, plain honest words, no hype.
-${ADD.photos.length?`The ${ADD.photos.length} attached photo(s) show the item for sale.`:"No photos were given."}
+${ADD.photos.length?`The ${Math.min(ADD.photos.length,6)} attached photo(s) show the item for sale.`:"No photos were given."}
 Seller's notes:
 - What it is: ${f.what||"(not given; work it out from the photos)"}
 - Status: ${status}
@@ -2406,7 +2406,7 @@ Reply with only this JSON:
 {"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","model_sure":true,"model_guess":"","label_hint":""}`;
   try{
     const opts = {modelTier:"default", cache:false};
-    if (ADD.photos.length && imgOK) opts.images = ADD.photos;
+    if (ADD.photos.length && imgOK) opts.images = ADD.photos.slice(0,6);
     const out = await sample.json(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
     out.description_html = withExtra(String(out.description_html||""));
@@ -2434,6 +2434,7 @@ function renderListing(){
     ${fieldCard("Description", pvOn?"How buyers will see it. Copy gives you the HTML for eBay's HTML tab.":"Edit the HTML here. In eBay, switch to the HTML tab, then paste.",
       `<div class="pv" id="pv" ${pvOn?"":"hidden"}>${cleanHtml(L.description_html)}</div><textarea id="fDesc" ${pvOn?"hidden":""} style="min-height:200px;font-family:var(--mono);font-size:14px">${esc(L.description_html||"")}</textarea>`, "desc",
       `<div class="tog" id="dTog"><button data-v="preview" aria-pressed="${pvOn}">Preview</button><button data-v="html" aria-pressed="${!pvOn}">HTML</button></div>`)}
+    ${listingChatHtml("lc")}
     <div id="saveMsg"></div>
     <div id="fExtra"></div>
     <button class="btn wide" id="saveItem">Save to tracker</button>
@@ -2448,6 +2449,9 @@ function renderListing(){
     $("#pv").closest(".field").querySelector("small").textContent = p ? "How buyers will see it. Copy gives you the HTML for eBay's HTML tab." : "Edit the HTML here. In eBay, switch to the HTML tab, then paste."; };
   $("#saveItem").onclick = saveItem;
   $("#startOver").onclick = () => { ADD = freshAdd(); viewAdd(); };
+  bindListingChat("lc", ADD.lc || (ADD.lc = {}), () => ({...ADD.listing, title:$("#fTitle").value, condition_description:$("#fCond").value, description_html:$("#fDesc").value}),
+    nl => { ADD.listing = nl; renderListing();
+      if (ADD.saved && S.photosOn){ saveListing({sku:ADD.sku, item:nl.title, status:"Listed"}, nl, true).then(() => { const m = $("#lcMsg"); if (m) m.insertAdjacentHTML("beforeend", `<div class="note info" style="margin-top:6px">The saved listing is updated too. The title in your tracker isn't changed: use Edit details for that.</div>`); }).catch(() => {}); } });
   /* columns they added themselves: one box each, filled into every tracker that has a column with that name */
   (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
     const h = $("#fExtra"); if (h && seen.size) h.innerHTML = `<div class="lab">Your own columns <small>Optional. Saved into the matching columns of your sheet.</small></div>${extraInputs([...seen.values()], ADD.extra || {}, "new")}`;
@@ -2588,6 +2592,7 @@ function itemPanel(r){
     <div class="stack" style="margin-top:16px">
       ${r.status==="Listed"?`<button class="btn wide" id="pSold">Mark as sold</button>`:""}
       ${r.status==="Sold"?`<button class="btn wide" id="pCard">Make a thank-you card</button><button class="btn wide ghost" id="pMsg">Message the buyer</button><button class="btn wide ghost" id="pRet">Return or refund</button>`:""}
+      <button class="btn wide ghost" id="pListing">View listing</button>
       <button class="btn wide ghost" id="pEdit">Edit details</button>
       ${r.sku?`<button class="btn wide ghost" id="pCopy">Copy SKU</button>`:""}
       <button class="btn wide ghost" id="pDel" style="color:var(--ret)">Delete from tracker</button>
@@ -2596,7 +2601,7 @@ function itemPanel(r){
   $("#pSold") && ($("#pSold").onclick = () => soldPanel(r)); $("#pRet") && ($("#pRet").onclick = () => returnPanel(r));
   $("#pMsg") && ($("#pMsg").onclick = () => { MSG_ROW = r.row; closePanel(); go("messages"); });
   $("#pDel").onclick = () => deletePanel([r]);
-  $("#pEdit").onclick = () => editPanel(r);
+  $("#pEdit").onclick = () => editPanel(r); $("#pListing").onclick = () => listingPanel(r);
   drawGallery(r, $("#phBox .galHost")); $("#pPhotos").onclick = () => addPhotosTo(r, $("#phBox"));
   $("#pCard") && ($("#pCard").onclick = () => cardPanel(r));
   extraRowVals(activeT(), r).then(({cols, vals}) => { const tb = document.querySelector("#overlay table.check tbody"); if (!tb || !cols.length) return;
@@ -3236,7 +3241,9 @@ function viewSettings(){
     <div class="card stack" style="gap:10px">
       <p style="margin:0">First copy this app's link: in Claude, open the app, tap <b>Share</b>, then <b>Copy link</b>.</p>
       <p style="margin:0"><b>iPhone:</b> open the Shortcuts app and tap <b>+</b>. Tap <b>Add Action</b>, search <b>Open URLs</b>, tap it, then tap the blue <b>URL</b> and paste the link. Name it Reseller Desk, tap the share button, then <b>Add to Home Screen</b> and <b>Add</b>. It opens in the Claude app.</p>
-      <p style="margin:0"><b>Android:</b> paste the link into Chrome, open it, tap <b>⋮</b>, then <b>Add to Home screen</b>.</p>
+      <p style="margin:0"><b>Android:</b> install it as a real app, with its own icon on your home screen <b>and</b> in your app list. Open the installer page in <b>Chrome</b>, paste your link, then tap <b>Install</b> (or <b>⋮</b> › <b>Install app</b>).</p>
+      <a class="btn small" href="${SITE}/app/" target="_blank" rel="noopener" style="align-self:flex-start">Open the Android installer</a>
+      <p class="muted" style="margin:0;font-size:14.5px">Chrome may show a thin bar with claude.ai at the top, because your app lives in Claude. If you only see "Add shortcut" and no "Install app", open the installer page itself in Chrome.</p>
       <p class="muted" style="margin:0;font-size:15px">It's also pinned in the Claude sidebar if you pinned it there.</p>
     </div>
     
@@ -3640,10 +3647,10 @@ async function drawGallery(r, el){
     if (!fid){ el.innerHTML = `<p class="muted" style="margin:0;font-size:14.5px">No photos saved for this item yet.</p>`; return; }
     const files = PHOTO_CACHE["list:"+fid] || (PHOTO_CACHE["list:"+fid] = (await dSearch(`parentId = '${fid}' and mimeType contains 'image/' and trashed = false`)).sort((a,b) => String(a.title).localeCompare(String(b.title))));
     if (!files.length){ el.innerHTML = `<p class="muted" style="margin:0;font-size:14.5px">No photos saved for this item yet.</p>`; return; }
-    el.innerHTML = `<div class="gallery">${files.slice(0,10).map(f => `<button data-id="${esc(f.id)}" aria-label="${esc(f.title)}"><div class="ph" style="width:100%;height:100%"></div></button>`).join("")}</div>
+    el.innerHTML = `<div class="gallery">${files.slice(0,24).map(f => `<button data-id="${esc(f.id)}" aria-label="${esc(f.title)}"><div class="ph" style="width:100%;height:100%"></div></button>`).join("")}</div>
       <a href="https://drive.google.com/drive/folders/${esc(fid)}" target="_blank" rel="noopener" style="font-size:14px;font-weight:700">Open the folder in Google Drive</a>`;
     el.querySelector(".gallery").onclick = e => { const b = e.target.closest("[data-id]"); const img = b && b.querySelector("img"); if (img) openViewer(img.src); };
-    for (const f of files.slice(0,10)){
+    for (const f of files.slice(0,24)){
       const b = el.querySelector(`[data-id="${CSS.escape(f.id)}"]`); if (!b) return;
       try{ b.innerHTML = `<img alt="" src="${await photoUrl(f.id)}">`; }catch{ b.innerHTML = `<span class="muted" style="font-size:12px;padding:6px;display:block">Can't show</span>`; }
     }
@@ -3656,7 +3663,7 @@ function openViewer(src){
 function addPhotosTo(r, host){
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
   inp.onchange = async () => {
-    const files = [...inp.files].slice(0,12); if (!files.length) return;
+    const files = [...inp.files].slice(0,24); if (!files.length) return;
     const m = host.querySelector(".phMsg");
     try{ await savePhotos(r, files, (n, of) => { m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Saving photo ${n} of ${of}…</div>`; });
       m.innerHTML = `<div class="note ok">Photos saved in Google Drive › Reseller Desk Photos › ${esc(r.sku ? boxOf(r.sku) : "No box")}.</div>`; SALES = null; drawGallery(r, host.querySelector(".galHost"));
@@ -3667,15 +3674,91 @@ function addPhotosTo(r, host){
 
 
 /* ---------- LISTING TEXT saved next to the photos ---------- */
-async function saveListing(r, L){
+async function saveListing(r, L, versioned){
   const fid = await itemFolder(r, true);
   const data = {sku:r.sku, title:L.title, condition:L.condition, condition_description:L.condition_description, item_specifics:L.item_specifics, description_html:L.description_html, saved:new Date().toISOString()};
-  await driveCall("create_file", {title:"listing.json", contentMimeType:"application/json", textContent:JSON.stringify(data, null, 2), disableConversionToGoogleType:true, parentId:fid});
+  /* the first save is listing.json; later edits are saved as listing-<time>.json and the newest one is the one shown */
+  const name = versioned ? `listing-${new Date().toISOString().replace(/[:.]/g, "-")}.json` : "listing.json";
+  await driveCall("create_file", {title:name, contentMimeType:"application/json", textContent:JSON.stringify(data, null, 2), disableConversionToGoogleType:true, parentId:fid});
+}
+async function getListing(r){
+  try{
+    const fid = await itemFolder(r, false); if (!fid) return null;
+    const all = (await dSearch(`parentId = '${fid}' and title contains 'listing' and trashed = false`)).filter(f => /^listing(-.*)?\.json$/.test(String(f.title)));
+    const f = all.filter(x => x.title !== "listing.json").sort((a,b) => String(b.title).localeCompare(String(a.title)))[0] || all.find(x => x.title === "listing.json"); if (!f) return null;
+    let b = b64From(await driveCall("download_file_content", {fileId:f.id})).replace(/^data:[^,]+,/, "");
+    let txt; try{ txt = decodeURIComponent(escape(atob(b))); }catch{ txt = b; }
+    return {...JSON.parse(txt), folder:fid};
+  }catch{ return null; }
+}
+/* LISTING CHAT: say what's wrong or what you'd like different and Claude rewrites the listing. Used on New item and on a saved listing. */
+async function chatEditListing(L, ask){
+  const prompt = `You edit an eBay UK listing for a reseller. Use UK spelling, plain honest words, no hype.
+Current listing (JSON):
+${JSON.stringify({title:L.title||"", item_specifics:L.item_specifics||[], condition:L.condition||"", condition_description:L.condition_description||"", description_html:L.description_html||""})}
+
+The seller asks: ${ask}
+
+Rules:
+- Change only what the request needs. Keep everything else exactly as it is.
+- Never invent faults, specs or a model number. If the request needs a fact you don't have, leave it out and say so in "note".
+- Title max 80 characters. Condition description plain text, max 1000 characters${S.noPhotosLine ? '. It must still end with: "Item packed and stored in inventory, so no further photos can be provided."' : ""}.
+- Description: simple HTML only (p, b, h2, ul, li; no styles, links or images).
+
+Reply with only this JSON:
+{"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","note":"one short line saying what you changed"}`;
+  const out = await sample.json(prompt, {modelTier:"default", cache:false});
+  if (!out || !out.title) throw {code:"invalid_json"};
+  return out;
+}
+const listingChatHtml = id => `<div class="card stack" style="gap:8px"><b>Change it with Claude</b><span class="muted" style="font-size:14.5px">Say what's wrong or what you'd like different, e.g. "shorter title", "the charger is included", "it's untested, not faulty", "friendlier wording".</span>
+  <textarea id="${id}In" style="min-height:70px" placeholder="What should change?"></textarea><div class="row"><button class="btn small" id="${id}Go">Change it</button><button class="btn small ghost" id="${id}Undo" hidden>Undo</button></div><div id="${id}Msg"></div></div>`;
+function bindListingChat(id, H, getL, apply){
+  const go = $(`#${id}Go`), undo = $(`#${id}Undo`), m = $(`#${id}Msg`); if (!go) return;
+  if (H.prev) undo.hidden = false; if (H.msg) m.innerHTML = H.msg;
+  go.onclick = async () => {
+    const ask = $(`#${id}In`).value.trim(); if (!ask){ m.innerHTML = `<div class="note warn">Say what you'd like changed.</div>`; return; }
+    await ready; if (!sample){ m.innerHTML = `<div class="note err">Claude isn't available here, so it can't change the listing. Open this app on claude.ai.</div>`; return; }
+    busy(go, true, "Changing…");
+    try{
+      const old = getL(), out = await chatEditListing(old, ask), note = String(out.note || "Done."); delete out.note;
+      const nl = {...old, ...out, item_specifics: Array.isArray(out.item_specifics) ? out.item_specifics : old.item_specifics}; nl.title = String(nl.title).slice(0, 80);
+      H.prev = old; H.msg = `<div class="note ok"><b>Changed.</b> ${esc(note)}</div>`; apply(nl);
+    }catch(e){ m.innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; busy(go, false); }
+  };
+  undo.onclick = () => { if (!H.prev) return; const cur = getL(); const back = H.prev; H.prev = cur; H.msg = `<div class="note info">Put it back how it was.</div>`; apply(back); };
+}
+/* a saved listing, opened from an item in Stock */
+async function listingPanel(r){
+  openPanel(`<h2 style="margin-top:0">Listing</h2><p class="muted" style="margin-top:0">${esc(r.item)}</p><div class="stack" id="lvBody"><p class="muted"><span class="spin" aria-hidden="true"></span> Finding the saved listing…</p></div>`);
+  const L0 = await getListing(r); const body = $("#lvBody"); if (!body) return;
+  if (!L0){ body.innerHTML = `<div class="note info">No saved listing for this item. A listing is saved with the item when you make it in New item, with "Save my item photos and listings to Google Drive" turned on in Settings.</div><button class="btn wide ghost" id="lvClose">Close</button>`; $("#lvClose").onclick = closePanel; return; }
+  let L = {...L0}; const H = {};
+  const draw = () => {
+    const spec = (L.item_specifics || []).filter(p => Array.isArray(p) && p.length >= 2);
+    body.innerHTML = `${fieldCard("Title", `${String(L.title||"").length}/80 characters`, `<input type="text" id="lvTitle" maxlength="80" value="${esc(L.title||"")}">`, "title")}
+      ${fieldCard("Item specifics", "", `<table><tbody>${spec.map(([k,v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`, "")}
+      ${fieldCard("Condition", "", `<input type="text" readonly value="${esc(L.condition||"")}">`, "")}
+      ${fieldCard("Condition description", "", `<textarea id="lvCond" maxlength="1000">${esc(L.condition_description||"")}</textarea>`, "cond")}
+      ${fieldCard("Description", "Edit the HTML here. In eBay, switch to the HTML tab, then paste.", `<textarea id="lvDesc" style="min-height:180px;font-family:var(--mono);font-size:14px">${esc(L.description_html||"")}</textarea><details><summary class="muted" style="cursor:pointer;font-size:14.5px;margin-top:8px">Preview</summary><div class="pv" id="lvPv">${cleanHtml(L.description_html||"")}</div></details>`, "desc")}
+      ${listingChatHtml("lcp")}
+      <div id="lvMsg"></div><button class="btn wide" id="lvSave">Save changes</button><button class="btn wide ghost" id="lvClose">Close</button>`;
+    body.onclick = e => { const b = e.target.closest("[data-copy]"); if (!b) return; const k = b.dataset.copy; copy(k==="title" ? $("#lvTitle").value : k==="cond" ? $("#lvCond").value : $("#lvDesc").value, b); };
+    $("#lvTitle").oninput = e => { L.title = e.target.value; e.target.closest(".field").querySelector("small").textContent = `${e.target.value.length}/80 characters`; };
+    $("#lvCond").oninput = e => { L.condition_description = e.target.value; };
+    $("#lvDesc").oninput = e => { L.description_html = e.target.value; $("#lvPv").innerHTML = cleanHtml(e.target.value); };
+    $("#lvClose").onclick = closePanel;
+    $("#lvSave").onclick = async () => { const b = $("#lvSave"); busy(b, true, "Saving…");
+      try{ await saveListing(r, L, true); $("#lvMsg").innerHTML = `<div class="note ok">Saved. This is now the listing shown for this item. The title in your tracker isn't changed: use Edit details for that.</div>`; }
+      catch(e){ $("#lvMsg").innerHTML = `<div class="note err">${esc(mcpMsg(e, GD))}</div>`; } busy(b, false); };
+    bindListingChat("lcp", H, () => L, nl => { L = nl; draw(); });
+  };
+  draw();
 }
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.42";
+const APP_VERSION = "2026.11.08.43";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3698,8 +3781,9 @@ const WHATS_NEW = [
     {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
     {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
   {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
-  {v:"2026.11.08.42", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
+  {v:"2026.11.08.41", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
   {v:"2026.11.08.42", items:[{text:"New items now go in the first empty row near the top of your sheet, not at the bottom."},{text:"Columns you add can have choices (a dropdown) and you pick where they show: New item, Mark as sold or Edit details. Change them any time in More › Your spreadsheet › Your columns.", show:"sheet"}]},
+  {v:"2026.11.08.43", items:[{text:"Up to 24 photos per item (Claude reads the first 6; all are saved)."},{text:"Stock › an item › View listing shows the saved listing, ready to copy."},{text:"A chat box on the listing: tell Claude what to change and it rewrites it, with Undo."},{text:"Android: install Reseller Desk as a real app with its own icon (Settings › Home screen shortcut)."}]},
   {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
