@@ -1103,10 +1103,11 @@ function wLayout(page){
     .map(x => ({id:x.id, size: B.defs[x.id].sizes.includes(x.size) ? x.size : B.defs[x.id].sizes[0]}));
   if (page === "more" && Array.isArray(saved) && !S.moreV3) ["miles","own","sheet"].forEach(id => { if (B.defs[id] && !seen.has(id)) out.push({id, size:B.defs[id].sizes[0]}); });
   if (page === "home" && Array.isArray(saved) && !S.homeAsk && B.defs.ask && !seen.has("ask")) out.unshift({id:"ask", size:"m"});
+  if (page === "home" && Array.isArray(saved) && !S.homeGross && B.defs.gross && !seen.has("gross")){ const i = out.findIndex(x => x.id === "profit"); out.splice(i < 0 ? 1 : i + 1, 0, {id:"gross", size:"s"}); }
   if (page === "more" && Array.isArray(saved) && !S.moreV4 && B.defs.tabs && !seen.has("tabs")) out.push({id:"tabs", size:B.defs.tabs.sizes[0]});
   return out;
 }
-function wSave(page, L){ if (page === "more"){ S.moreV3 = true; S.moreV4 = true; } if (page === "home") S.homeAsk = true; S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
+function wSave(page, L){ if (page === "more"){ S.moreV3 = true; S.moreV4 = true; } if (page === "home"){ S.homeAsk = true; S.homeGross = true; } S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
 function wDomLayout(page){ const B = WB[page], cur = wLayout(page); return [...B.host.querySelectorAll(".wb>.wd")].map(el => ({id:el.dataset.id, size:el.dataset.size || (cur.find(x=>x.id===el.dataset.id)||{}).size})); }
 
 /* page code calls this with its widgets (defs), the standard layout (def) and optional click handling */
@@ -1285,6 +1286,10 @@ function homeWidgets(D){
   const stockK = () => { const ages = D.listed.map(r => parseUK(r.bought)).filter(Boolean).map(d => Math.round((today()-d)/86400000));
     return [["Listed", String(D.listed.length), "", "Waiting to sell"], ["In stock", gbp(D.stockVal), "", "What you paid"], ["Avg wait", ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length)+" days":"-", "", "Since bought"], ["Longest", ages.length?Math.max(...ages)+" days":"-", "", "Oldest item"]]; };
   return {
+    gross: {name:"Gross sales this year", desc:"Everything buyers paid you this year, before costs, fees and postage.", sizes:["s","m"], render:(z,{w,h}) => {
+      const tot = D.salesM.reduce((a,b)=>a+b,0), cnt = D.soldY ?? null;
+      return z==="s" ? wh(`Gross sales ${D.year}`) + wgrow + wbig(gbp(tot), w, z) + wmeta(`${MONTHS[D.cm]} ${esc(gbp(D.salesM[D.cm]||0))}`)
+        : wh(`Gross sales ${D.year}`, `<em>${MONTHS[D.cm]} ${esc(gbp(D.salesM[D.cm]||0))}</em>`) + wbig(gbp(tot), w, z) + wgrow + wmeta(`Before costs. Profit ${esc(gbp(D.netTotal))} (${tot ? Math.round(D.netTotal/tot*100) : 0}% kept).`); }},
     profit: {name:"Profit this year", desc:"Money made so far this year, with each month on a chart.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
       const big = wbig(gbp(D.netTotal), w, z==="w"?"l":z, D.netTotal<0?"neg":"");
       if (z==="w") return `<div class="wsplit"><div>${wh(`Money made in ${D.year}`)}${big}<p class="wsub">What buyers paid, minus stock, fees, postage${D.hasExp?" and expenses":""}.</p></div><div>${areaChart(D.net, MONTHS, {now:D.cm, h:Math.max(80, h-8), w:Math.round(w*0.62), label:`Profit each month in ${D.year}`})}</div></div>`;
@@ -1293,16 +1298,16 @@ function homeWidgets(D){
       const sub = `<p class="wsub">What buyers paid, minus stock, fees, postage${D.hasExp?" and expenses":""}.</p>`;
       return wh(`Money made in ${D.year} so far`) + big + sub + wgrow + areaChart(D.net, MONTHS, {now:D.cm, h:Math.max(90, h - 150), w, label:`Profit each month in ${D.year}`}) + `<p class="cap wcap">Profit each month. The dot is ${FULLM[D.cm]}.</p>`; }},
     month: {name:"Month at a glance", desc:"Profit, items sold and sales for one month. Pick any month.", sizes:["s","m","l"], render:(z,{w,h}) => {
-      const k = [[`Profit`, gbp(D.net[D.cm]||0), (D.net[D.cm]||0)<0?"neg":"", "After costs and fees"], ["Sold", String(D.soldNow.length), "", "Items sold"], ["Sales", gbp(D.salesM[D.cm]||0), "", "What buyers paid"], ["Listed now", String(D.listed.length), "", `${gbp(D.stockVal)} paid`]];
+      const k = [[`Profit`, gbp(D.net[D.cm]||0), (D.net[D.cm]||0)<0?"neg":"", "After costs and fees"], ["Sold", String(D.soldNow.length), "", "Items sold"], ["Gross sales", gbp(D.salesM[D.cm]||0), "", "What buyers paid"], ["Listed now", String(D.listed.length), "", `${gbp(D.stockVal)} paid`]];
       if (z==="s") return wh(`${MONTHS[D.cm]} profit`) + wgrow + wbig(gbp(D.net[D.cm]||0), w, z, (D.net[D.cm]||0)<0?"neg":"") + wmeta(`${D.soldNow.length} sold · ${gbp(D.salesM[D.cm]||0)} sales`);
       if (z==="m") return wh(FULLM[D.cm], monthSel) + wkpis(k, 2);
       const rest = h - 22 - 160 - 30;
       return wh(`${FULLM[D.cm]} at a glance`, monthSel) + wkpis(k, 2, true) + `<div class="wsec">Sold in ${FULLM[D.cm]}</div>` + wrows(D.soldNow, wfit(rest, 46), r => wrow(r.row, r.item, r.profit||r.sold, esc(r.soldOn), num(r.profit)<0?"neg":"pos"), "Nothing sold this month."); }},
-    sales: {name:"Money taken", desc:"What buyers paid you each month, before your costs.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
+    sales: {name:"Gross sales each month", desc:"What buyers paid you each month, before your costs.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
       const tot = D.salesM.reduce((a,b)=>a+b,0);
       if (z==="s") return wh(`Taken ${D.year}`) + wbig(gbp(tot), w, z) + wgrow + spark(D.salesM, w, h-84, {now:D.cm});
       const cap = z==="m" || z==="w" ? "" : `<p class="cap wcap">What buyers paid each month for items, before your costs. Highlighted: ${FULLM[D.cm]}.</p>`;
-      return wh("Money taken each month", `<em>${esc(gbp(tot))}</em>`) + wgrow + barChart(D.salesM, MONTHS, {now:D.cm, w, h: h - 36 - (cap?40:0), values: z!=="m" || w > 400, label:`Money taken each month in ${D.year}`}) + cap; }},
+      return wh("Gross sales each month", `<em>${esc(gbp(tot))}</em>`) + wgrow + barChart(D.salesM, MONTHS, {now:D.cm, w, h: h - 36 - (cap?40:0), values: z!=="m" || w > 400, label:`Gross sales each month in ${D.year}`}) + cap; }},
     ask: {name:"Ask Claude", desc:"Tell Claude what to do in your own words, with screenshots.", sizes:["m","s"], tap:() => askPanel(), render:(z) =>
       z==="m" ? `<div class="wask"><div class="wh"><span>Ask Claude</span></div><div class="waskbox"><span>Mark the Kodak sold, add tape £3.50…</span><i>${wIcon.cam}</i><b>${wIcon.send}</b></div><p>Type anything, or send a screenshot. You check every change first.</p></div>`
       : `<div class="wshort ${z}"><span class="wico">${wIcon.ask}</span><div><b>Ask Claude</b><span>Do this, do that</span></div></div>`},
@@ -1378,8 +1383,8 @@ function siteWidgets(D){
 function homeDefault(D){
   const chk = D.checkRows.length, multi = sells().length > 1;
   return {
-    phone: [{id:"ask",size:"m"},{id:"profit",size:"m"},{id:"month",size:"m"},{id:"logsale",size:"s"},{id:"stock",size:"s"},{id:"oldest",size:"m"},{id:"recent",size:"m"},{id:"sales",size:"m"},{id:"bought",size:"s"},{id:"days",size:"s"}, ...(multi?[{id:"apps",size:"m"}]:[]), ...(chk?[{id:"check",size:"m"}]:[])],
-    wide: [{id:"ask",size:"m"},{id:"profit",size:"m"},{id:"month",size:"m"},{id:"logsale",size:"s"},{id:"stock",size:"s"},
+    phone: [{id:"ask",size:"m"},{id:"profit",size:"m"},{id:"gross",size:"s"},{id:"logsale",size:"s"},{id:"month",size:"m"},{id:"stock",size:"s"},{id:"oldest",size:"m"},{id:"recent",size:"m"},{id:"sales",size:"m"},{id:"bought",size:"s"},{id:"days",size:"s"}, ...(multi?[{id:"apps",size:"m"}]:[]), ...(chk?[{id:"check",size:"m"}]:[])],
+    wide: [{id:"ask",size:"m"},{id:"profit",size:"m"},{id:"gross",size:"s"},{id:"month",size:"m"},{id:"logsale",size:"s"},{id:"stock",size:"s"},
            {id:"sales",size:"l"},{id:"recent",size:"l"},{id:"oldest",size:"l"},
            ...(multi ? [{id:"apps",size:"m"},{id:"bought",size:"s"},{id:"days",size:"s"},{id:chk?"check":"best",size:"m"}]
              : chk ? [{id:"check",size:"m"},{id:"bought",size:"s"},{id:"days",size:"s"},{id:"best",size:"m"}]
@@ -1388,7 +1393,7 @@ function homeDefault(D){
 }
 
 function soldWidgets(X){
-  const k = [["Sales", gbp(X.sales), "", "What buyers paid"], ["Stock cost", gbp(X.cost), "", "What you paid"], ["Fees & post", gbp(X.fees), "", "Fees and labels"], ["Avg profit", X.sold.length?gbp(X.profit/X.sold.length):"-", "", "Per item"], ["Days to sell", X.avgDays==null?"-":String(X.avgDays), "", "On average"], ["Best", X.best?gbp(num(X.best.profit)):"-", "pos", X.best?X.best.item:""]];
+  const k = [["Gross sales", gbp(X.sales), "", "What buyers paid, before costs"], ["Stock cost", gbp(X.cost), "", "What you paid"], ["Fees & post", gbp(X.fees), "", "Fees and labels"], ["Avg profit", X.sold.length?gbp(X.profit/X.sold.length):"-", "", "Per item"], ["Days to sell", X.avgDays==null?"-":String(X.avgDays), "", "On average"], ["Best", X.best?gbp(num(X.best.profit)):"-", "pos", X.best?X.best.item:""]];
   const one = (key, name, desc, i) => ({name, desc, sizes:["s"], render:(z,{w}) => wh(k[i][0]) + wgrow + wbig(k[i][1], w, z, k[i][2]) + wmeta(esc(k[i][3]||""))});
   return {
     profit: {name:"Profit", desc:"Profit on items for the period you picked.", sizes:["s","m","l"], render:(z,{w,h}) => {
@@ -3665,7 +3670,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.34";
+const APP_VERSION = "2026.11.08.35";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3692,6 +3697,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
   {v:"2026.11.08.31", items:[{text:"Choose how you hear about new versions (Settings › About this app), and this What's new screen."}]},
+  {v:"2026.11.08.35", items:[{text:"Gross sales: a new Home box shows everything buyers paid this year before costs, and Sold and the charts now say Gross sales."}]},
   {v:"2026.11.08.34", items:[{text:"Tidier layout: widgets are more compact on phones, tablets and computers, nothing gets cut off, and Chat has its own icon."}]},
   {v:"2026.11.08.33", items:[{text:"Ask Claude on Home: tell it what to do in your own words, with screenshots. You see every change before it's saved."}]}
 ];
