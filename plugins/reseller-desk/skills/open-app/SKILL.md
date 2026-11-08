@@ -1,6 +1,6 @@
 ---
 name: open-app
-description: Use when someone says "open reseller desk", "open the app", "set up the app", "show me my numbers", or installs this plugin and wants the Reseller Desk app. Puts the Reseller Desk app (home screen, new item, stock, sold, expenses, miles, chat) into their Claude as their own private page and opens it.
+description: Use when someone says "open reseller desk", "open reseller desk and pin it", "open the app", "set up the app", "show me my numbers", or installs this plugin and wants the Reseller Desk app. Puts the Reseller Desk app (home screen, new item, stock, sold, expenses, miles, chat) into their Claude as their own private page and opens it.
 ---
 
 # Open the Reseller Desk app
@@ -8,7 +8,7 @@ description: Use when someone says "open reseller desk", "open the app", "set up
 The app is the screen part of this plugin: tap-to-use pages for adding items, logging sales, stock, profit, expenses and the group chat. It lives in this skill's folder as `assets/reseller-desk.html`.
 
 ## 1. Already have it? Open it
-List their artifacts (Artifact tool, `action: "list"`) and look for one titled **Reseller Desk**. If there is one, open it (`action: "open"`) and stop. Never make a second copy; their settings are tied to the first one. The app updates itself when a new version comes out.
+List their artifacts (Artifact tool, `action: "list"`) and look for one titled **Reseller Desk**. If there is one, open it (`action: "open"`). If they asked for it to be pinned, also pin it (`action: "pin"`). Then stop. Never make a second copy; their settings are tied to the first one. The app updates itself when a new version comes out.
 
 ## 2. Otherwise, make their copy
 1. Check Google Sheets and Google Drive are connected. If not, say in one line that the app needs both, and offer to connect them.
@@ -23,7 +23,9 @@ List their artifacts (Artifact tool, `action: "list"`) and look for one titled *
 ```json
 {"artifact":{},"db":{"rules":[{"path":"owner","read":"admin","write":"admin"}]},"downloads":{},"mcp":{"servers":[{"server":"Google Sheets","tools":["get_values","update_spreadsheet","get_spreadsheet"]},{"server":"Google Drive","tools":["create_file","share_file","search_files","download_file_content","copy_file"]}]},"sample":{"images":true},"user":{}}
 ```
-5. Offer once to pin it to their sidebar so it's one tap away.
+5. Pinning, so it sits in their Claude sidebar under its own name, one tap away:
+   - If they asked to pin it ("open reseller desk and pin it", "pin it to my sidebar"), pass `pin: true` on this publish.
+   - Otherwise ask once with AskUserQuestion: "Pin Reseller Desk to your Claude sidebar so it's one tap away?" (Yes, pin it (Recommended) / No thanks). On yes, pin it (`action: "pin"`).
 
 ## 3. Tell them
 Two lines: the app is ready and only they can see it, and the first screen walks them through linking their spreadsheet (or making one). After that, the chat skills (new listing, log sale and so on) and the app use the same sheet.

@@ -7,7 +7,7 @@
       "name": "reseller-desk",
       "source": "./plugins/reseller-desk",
       "description": "Listings from photos, stock, sales, profit, expenses and miles, all in your own Google Sheet.",
-      "version": "0.4.2"
+      "version": "0.4.3"
     }
   ]
 }

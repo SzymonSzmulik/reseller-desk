@@ -3020,6 +3020,7 @@ function viewSettings(){
         <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
         <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
         <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
+        <li><span>Tip: in a new chat, say <b>"pin reseller desk"</b> and it sits in your Claude sidebar, one tap away.</span></li>
         <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
       <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
@@ -3467,7 +3468,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.24";
+const APP_VERSION = "2026.11.08.25";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3715,6 +3716,7 @@ function chatSetupPanel(){
         <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
         <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
         <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
+        <li><span>Tip: in a new chat, say <b>"pin reseller desk"</b> and it sits in your Claude sidebar, one tap away.</span></li>
         <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
       <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
@@ -3760,7 +3762,7 @@ HOW THE APP WORKS
 - eBay drafts (optional): More › Settings › Send drafts to eBay. Needs a free eBay developer account and the free open-source eBay connector installed in the Claude desktop app on a computer ("Copy the setup message" gives a message to paste into Claude there). Then "Send to eBay as a draft" on an item copies a message to paste into Claude on that computer. It doesn't work from the phone yet. If someone wants more (phone drafts or any new feature), explain their options kindly; for new features they can use More › Make your own, and Claude can change the app for them.
 - Tracker upgrades: More › Settings › About this app › "Update my spreadsheets" adds missing new pieces (e.g. Sold on, hidden Photos, the Mileage tab). It backs up the sheet first (a copy in Google Drive), only adds columns at the end, never changes typed data, and skips sheets that don't match the template.
 - Updates: the app checks for a newer version by itself and shows "Update now" at the top; More › Settings › About this app › Check for updates. If updating fails, they can say "open reseller desk" in a Claude chat (with the plugin added) and Claude puts the newest version in.
-- Getting it for a friend: they go to https://szymonszmulik.github.io and follow the steps (Customize › Plugins › Add › Add marketplace › SzymonSzmulik/reseller-desk, turn on Sync automatically, add Reseller Desk, then say "open reseller desk"). Needs a paid Claude plan. The app has no share button.
+- Getting it for a friend: they go to https://szymonszmulik.github.io and follow the steps (Customize › Plugins › Add › Add marketplace › SzymonSzmulik/reseller-desk, turn on Sync automatically, add Reseller Desk, then say "open reseller desk and pin it", which puts the app in their Claude sidebar). Already have the app but it isn't in the sidebar: say "pin reseller desk" in a Claude chat. Needs a paid Claude plan. The app has no share button.
 - Plugin in chat: Settings › Use it in Claude chat explains it. With the plugin, in any chat they can send photos to list, a sold screenshot, an expense ("tape £3.50") or miles ("drove 12 miles to the carboot"), or say "from now on…" to change their settings and sheet. No plugin on their plan: "Set up a Claude project instead".
 - Miles: More › Miles logs business trips into a Mileage tab that works out the HMRC claim (55p a mile for the first 10,000 business miles in the tax year from 6 April 2026, 25p after) and adds it to expenses and HMRC Box 18. Claim miles or real car costs, not both.
 - Your spreadsheet: More › Your spreadsheet keeps the sheet's dropdowns in step with their settings, adds columns or tabs, and can mark a tracker as someone else's (hands-off: only new rows, never layout changes).
