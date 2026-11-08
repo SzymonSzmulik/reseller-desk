@@ -8,7 +8,7 @@ description: Use when someone says "open reseller desk", "open reseller desk and
 The app is the screen part of this plugin: tap-to-use pages for adding items, logging sales, stock, profit, expenses and the group chat. It lives in this skill's folder as `assets/reseller-desk.html`.
 
 ## 1. Already have it? Open it
-List their artifacts (Artifact tool, `action: "list"`) and look for one titled **Reseller Desk**. If there is one, open it (`action: "open"`). If they asked for it to be pinned, also pin it (`action: "pin"`). Then stop. Never make a second copy; their settings are tied to the first one. The app updates itself when a new version comes out.
+List their artifacts (Artifact tool, `action: "list"`) and look for one titled **Reseller Desk**. If there is one, open it (`action: "open"`). If they asked for it to be pinned, try to pin it (`action: "pin"`). If pinning isn't possible here, say in one line: "Tap the pin option at the top of the page to add it to your sidebar." Then stop. Never make a second copy; their settings are tied to the first one. The app updates itself when a new version comes out.
 
 ## 2. Otherwise, make their copy
 1. Check Google Sheets and Google Drive are connected. If not, say in one line that the app needs both, and offer to connect them.

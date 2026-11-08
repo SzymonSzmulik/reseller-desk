@@ -3206,7 +3206,7 @@ function viewSettings(){
         <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
         <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
         <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
-        <li><span>Tip: in a new chat, say <b>"pin reseller desk"</b> and it sits in your Claude sidebar, one tap away.</span></li>
+        <li><span>Tip: say <b>"open reseller desk"</b> in a new chat, then use the <b>pin option</b> on the page that opens so it sits in your Claude sidebar.</span></li>
         <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
       <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
@@ -3217,11 +3217,12 @@ function viewSettings(){
     </div></details>
     <details class="grp"><summary><span>Fix problems after updating<span class="gh">Pin missing, old plugin version</span></span></summary><div class="stack">
       <div class="card stack" style="gap:10px"><b>It's not pinned in my sidebar</b>
+        <p class="muted" style="margin:0;font-size:14.5px">Claude can open the app for you but sometimes can't pin it itself. You pin it on the page.</p>
         <ol class="steps">
-          <li><span>Tap <b>Copy the pin message</b>, open a new chat in Claude and paste it.</span></li>
-          <li><span>Or do it by hand: open this page in Claude and use its <b>⋯ menu</b> (next to the title) to choose <b>Pin</b>.</span></li>
+          <li><span>Tap <b>Copy the open message</b>, start a new chat in Claude and paste it. Claude opens your Reseller Desk.</span></li>
+          <li><span>On the page that opens, tap the <b>pin option</b> at the top, next to the title (or in its ⋯ menu). It then sits in your left sidebar.</span></li>
         </ol>
-        <button class="btn small ghost" id="fxPin" style="align-self:flex-start">Copy the pin message</button>
+        <button class="btn small ghost" id="fxPin" style="align-self:flex-start">Copy the open message</button>
       </div>
       <div class="card stack" style="gap:10px"><b>My plugin still shows an old version</b>
         <ol class="steps">
@@ -3339,7 +3340,7 @@ function viewSettings(){
   $("#updCheck").onclick = async () => { const b = $("#updCheck"), m = $("#updCheckMsg"); busy(b, true, "Checking…");
     try{ const u = await checkUpdate(true); m.innerHTML = u ? `<div class="note ok">Version ${esc(u.ver)} is ready. Tap Update now at the top.</div>` : `<div class="note ok">You have the newest version.</div>`; if (u) window.scrollTo(0,0); }
     catch(e){ m.innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } busy(b, false); };
-  $("#fxPin").onclick = e => copy("Pin my Reseller Desk app to my Claude sidebar. Find my existing artifact called Reseller Desk (don't make a new copy, my settings are saved in that one), open it and pin it. Then tell me in one line if it worked.", e.target);
+  $("#fxPin").onclick = e => copy("Open my existing Reseller Desk artifact (don't make a new copy, my settings are saved in that one). Then tell me to pin it using the pin option on the opened page.", e.target);
   $("#fxMkt").onclick = e => copy("SzymonSzmulik/reseller-desk", e.target);
   $("#mkProj").onclick = () => projectPanel();
   $("#imp").onclick = () => $("#importFile").click();
@@ -3632,7 +3633,7 @@ async function saveListing(r, L){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.40";
+const APP_VERSION = "2026.11.08.41";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3655,7 +3656,7 @@ const WHATS_NEW = [
     {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
     {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
   {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
-  {v:"2026.11.08.40", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
+  {v:"2026.11.08.41", items:[{text:"New: Settings › Fix problems after updating, with a pin message and steps for an old plugin version."}]},
   {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
@@ -3987,7 +3988,7 @@ function chatSetupPanel(){
         <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
         <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
         <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
-        <li><span>Tip: in a new chat, say <b>"pin reseller desk"</b> and it sits in your Claude sidebar, one tap away.</span></li>
+        <li><span>Tip: say <b>"open reseller desk"</b> in a new chat, then use the <b>pin option</b> on the page that opens so it sits in your Claude sidebar.</span></li>
         <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
       <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
