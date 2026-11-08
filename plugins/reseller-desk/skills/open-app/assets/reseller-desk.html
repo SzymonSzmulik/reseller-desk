@@ -1832,18 +1832,23 @@ async function addTab(t, name, heads){
 }
 function viewSheet(){
   const own = S.trackers.filter(t => !handsOff(t)), ids = own.filter(t => !shp(t)).map(t => t.id);
+  /* only trackers whose layout can change are offered; the others are named so it's clear they're left alone */
+  const can = S.trackers.filter(layoutOk), left = S.trackers.filter(t => !layoutOk(t));
+  const pickTo = key => !can.length ? `<div class="note info">None of your trackers can be changed here: ${esc(left.map(tName).join(", "))} ${left.length===1?"is":"are"} hands-off or use your own layout.</div>`
+    : (can.length === 1 ? `<p class="muted" style="margin:0;font-size:14.5px">Adds to <b>${esc(tName(can[0]))}</b>.` : `<div><div class="lab">Add to</div><div class="chips" id="tg-${key}">${can.map(t => `<button class="chip" data-v="${esc(t.id)}" aria-pressed="${ids.includes(t.id)}">${esc(tName(t))}</button>`).join("")}</div></div><p class="muted" style="margin:0;font-size:14.5px">`)
+      + (can.length && left.length ? ` ${esc(left.map(tName).join(", "))} ${left.length===1?"is":"are"} left alone (hands-off).` : "") + (can.length ? "</p>" : "");
   $("#view").innerHTML = `<h1>Your spreadsheet</h1><p class="lead">Your sheet keeps up with how you work. Change where you buy or your expense types in Settings and its dropdowns follow. Need something else tracked? Add it here, or just tell Claude in chat.</p>
   <div class="stack">
     <div class="card stack" style="gap:8px"><b>Your trackers</b>${S.trackers.map(t => `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(tName(t))}</b><div class="muted" style="font-size:14px">${handsOff(t) ? "Hands-off: new rows only, its layout is never changed" : shp(t) ? "Your own layout: new rows only" : "Kept in step with your settings"}</div></div>${shp(t) ? "" : `<button class="btn small ghost" data-ho="${esc(t.id)}">${handsOff(t) ? "Allow changes" : "Make hands-off"}</button>`}</div>`).join("")}
       <div id="shSyncMsg"></div><button class="btn small ghost" id="shSync">Update dropdowns now</button></div>
     <div class="card stack"><b>Add a column</b><p class="muted" style="margin:0;font-size:14.5px">Goes on the Sales tab after your last column. Nothing you've typed moves.</p>
-      <label class="f">Column name<input type="text" id="shCol" maxlength="40" placeholder="e.g. Postage service"></label>${targetChips("shc", ids, "Add to")}<div id="shColMsg"></div><button class="btn wide" id="shColGo">Add column</button></div>
+      <label class="f">Column name<input type="text" id="shCol" maxlength="40" placeholder="e.g. Postage service"></label>${pickTo("shc")}<div id="shColMsg"></div><button class="btn wide" id="shColGo" ${can.length?"":"disabled"}>Add column</button><p class="muted" style="margin:0;font-size:13.5px">It then shows in New item and Edit details, and Claude fills it in chat.</p></div>
     <div class="card stack"><b>Add a tab</b><label class="f">Tab name<input type="text" id="shTab" maxlength="40" placeholder="e.g. Repairs"></label>
-      <label class="f">Column headings <small>Separate with commas.</small><input type="text" id="shHeads" placeholder="e.g. Date, Item, Part, Cost"></label>${targetChips("sht", ids, "Add to")}<div id="shTabMsg"></div><button class="btn wide" id="shTabGo">Add tab</button></div>
+      <label class="f">Column headings <small>Separate with commas.</small><input type="text" id="shHeads" placeholder="e.g. Date, Item, Part, Cost"></label>${pickTo("sht")}<div id="shTabMsg"></div><button class="btn wide" id="shTabGo" ${can.length?"":"disabled"}>Add tab</button><button class="btn wide ghost" id="shTabsOpen">Open Your tabs</button></div>
     <div class="card stack"><b>Mileage</b><p class="muted" style="margin:0;font-size:14.5px">Log business trips and claim them as an expense.</p><button class="btn wide ghost" id="shMiles">Open Miles</button></div>
   </div>`;
   bindTargets("shc"); bindTargets("sht");
-  $("#shMiles").onclick = () => go("miles");
+  $("#shMiles").onclick = () => go("miles"); $("#shTabsOpen").onclick = () => go("tabs");
   $("#view").querySelectorAll("[data-ho]").forEach(b => b.onclick = () => { const t = S.trackers.find(x => x.id === b.dataset.ho); if (!t) return; t.handsOff = !handsOff(t); save(); toast(t.handsOff ? `${tName(t)} is hands-off` : `${tName(t)} can be changed`); viewSheet(); });
   $("#shSync").onclick = async () => { const b = $("#shSync"); busy(b, true, "Updating…"); const r = await sheetSync(true); busy(b, false); $("#shSyncMsg").innerHTML = `<div class="note ok">${r.length ? r.map(esc).join("<br>") : "Nothing to update."}</div>`; };
   $("#shColGo").onclick = async () => { const b = $("#shColGo"), m = $("#shColMsg"), name = $("#shCol").value.trim(); const ts = readTargets("shc", ids).filter(layoutOk);
@@ -3606,7 +3611,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.29";
+const APP_VERSION = "2026.11.08.30";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
