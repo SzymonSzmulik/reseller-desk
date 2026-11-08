@@ -24,7 +24,7 @@ In Claude: **Customize › Plugins › Add › Add marketplace**, enter `SzymonS
 The plugin updates itself (with Sync automatically on) and the app updates itself (tap Update now when it asks).
 
 ## Needs
-A paid Claude plan (for plugins), and Google Drive and Google Sheets connected in Claude.
+Any Claude plan, free included (free plans have lower usage limits), with Google Drive and Google Sheets connected in Claude.
 
 ## Skills
 | Skill | Use it when |
