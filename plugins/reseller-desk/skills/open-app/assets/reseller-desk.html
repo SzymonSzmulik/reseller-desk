@@ -1669,7 +1669,7 @@ async function chatSetup(on){
 
 /* ---------- HANDS-OFF TRACKERS: someone else's sheet (say a parent's). The app only ever adds rows there,
    never changes its layout, dropdowns, tabs or formulas. Set per tracker on Your spreadsheet; guessed from the short name until then. ---------- */
-const handsOff = t => !!t && (t.handsOff === true || (t.handsOff === undefined && /\b(dad|mum|mom|partner)\b|'s$/i.test(String(t.label||"")) && !/^(mine|me)$/i.test(String(t.label||"").trim())));
+const handsOff = t => !!t && (t.archive === true || t.handsOff === true || (t.handsOff === undefined && /\b(dad|mum|mom|partner)\b|'s$/i.test(String(t.label||"")) && !/^(mine|me)$/i.test(String(t.label||"").trim())));
 const layoutOk = t => !!t && !shp(t) && !handsOff(t);
 
 /* ---------- MILES: business trips, claimed at HMRC's simplified rate.
@@ -3264,6 +3264,7 @@ function viewSettings(){
       <label class="ck"><input type="checkbox" id="updOn" ${S.updOn!==false?"checked":""}> Tell me when there's a new version</label>
       <button class="btn ghost wide" id="updCheck">Check for app updates</button>
       <button class="btn ghost wide" id="updNew">What's new</button>
+      <button class="btn ghost wide" id="nyStart">Start a new year</button>
       <button class="btn ghost wide" id="updBack">Go back to the previous version</button>
       <button class="btn ghost wide" id="trkCheck">Update my spreadsheets</button><p class="muted" style="margin:0;font-size:13.5px">App updates can bring spreadsheet updates too. They're only for trackers made from the template, and only added when you say so.</p><div id="updCheckMsg"></div>
     </div></details>
@@ -3331,6 +3332,7 @@ function viewSettings(){
   $("#updBack").onclick = goBack;
   $("#updOn").onchange = e => { e.stopPropagation(); S.updOn = e.target.checked; save(); toast(S.updOn ? "You'll be told about new versions" : "Only when you check"); };
   $("#updNew").onclick = () => whatsNewPanel(null);
+  $("#nyStart").onclick = () => checkNewYear(true).catch(e => toast(mcpMsg(e)));
   $("#trkCheck").onclick = async () => { const b = $("#trkCheck"); busy(b, true, "Checking your trackers…"); try{ await checkTrackers(true); }catch(e){ $("#updCheckMsg").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } busy(b, false); };
   $("#updCheck").onclick = async () => { const b = $("#updCheck"), m = $("#updCheckMsg"); busy(b, true, "Checking…");
     try{ const u = await checkUpdate(true); m.innerHTML = u ? `<div class="note ok">Version ${esc(u.ver)} is ready. Tap Update now at the top.</div>` : `<div class="note ok">You have the newest version.</div>`; if (u) window.scrollTo(0,0); }
@@ -3670,7 +3672,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.35";
+const APP_VERSION = "2026.11.08.36";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3697,6 +3699,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
   {v:"2026.11.08.31", items:[{text:"Choose how you hear about new versions (Settings › About this app), and this What's new screen."}]},
+  {v:"2026.11.08.36", items:[{text:"New year: in January the app offers to keep last year's sheet and make a fresh copy of your own sheet for the new year (Settings › About this app › Start a new year)."}]},
   {v:"2026.11.08.35", items:[{text:"Gross sales: a new Home box shows everything buyers paid this year before costs, and Sold and the charts now say Gross sales."}]},
   {v:"2026.11.08.34", items:[{text:"Tidier layout: widgets are more compact on phones, tablets and computers, nothing gets cut off, and Chat has its own icon."}]},
   {v:"2026.11.08.33", items:[{text:"Ask Claude on Home: tell it what to do in your own words, with screenshots. You see every change before it's saved."}]}
@@ -3842,6 +3845,79 @@ function upgradePanel(results){
     SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; btn.textContent = "Done ✓"; btn.disabled = true;
     try{ localStorage.setItem("rd-upg-"+APP_VERSION, "1"); }catch{} $("#banner").innerHTML = "";
   });
+}
+/* ---------- NEW YEAR: in January–March, offer once per tracker: keep last year's sheet as a backup, and make a copy of THEIR OWN sheet for the new year with the typed rows emptied.
+   Their own sheet is copied (not the template), so any changes they made to it carry over. Formulas, tabs and layout are kept; only typed values go. ---------- */
+const NY_KEEP = /^(summary|hmrc summary|monthly|carboot_entry|tutorial|claude setup|daily|claude memory)$/i;
+async function nyFormulaCols(id, tab, hr){
+  const set = new Set();
+  try{ const p = await gs("get_spreadsheet", {spreadsheetId:id, includeGridData:true, ranges:[`${qt(tab)}!A${hr+2}:ZZ${hr+4}`], fields:["sheets.data.rowData.values.userEnteredValue"]});
+    (p?.sheets?.[0]?.data?.[0]?.rowData || []).forEach(rd => (rd.values || []).forEach((c, j) => { if (c?.userEnteredValue?.formulaValue) set.add(j); })); }catch{}
+  return set;
+}
+async function nyEmpty(t, newId, keepListed){
+  const a = await sheetIds(newId); idCache[newId] = a; const done = [];
+  const salesTab = shp(t) ? sTab(t) : "Sales", shr = shp(t) ? (shp(t).s.hr || 0) : 0;
+  for (const [tab, sid] of Object.entries(a.tabs)){
+    if (NY_KEEP.test(tab.trim())) continue;
+    const hr = tab === salesTab ? shr : (shp(t)?.e?.tab === tab ? (shp(t).e.hr || 0) : 0);
+    const v = await getVals(newId, `${qt(tab)}!A1:ZZ2000`); if (v.length <= hr + 1) continue;
+    const fcols = await nyFormulaCols(newId, tab, hr); const width = Math.max(...v.map(r => r.length));
+    const statusCol = tab === salesTab ? (shp(t) ? shp(t).s.c[1] : 1) : -1;
+    const keep = r => keepListed && statusCol >= 0 && /^listed$/i.test(String(r[statusCol] ?? "").trim());
+    const reqs = []; let kept = 0, cleared = 0;
+    for (let i = hr + 1; i < v.length; i++){
+      const r = v[i] || []; if (!r.some(c => String(c ?? "").trim())) continue;
+      if (keep(r)){ kept++; continue; }
+      const cells = {}; for (let j = 0; j < width; j++) if (!fcols.has(j) && String(r[j] ?? "").trim() !== "") cells[j] = null;
+      if (Object.keys(cells).length){ reqs.push(...rowRequests(sid, i, cells)); cleared++; }
+    }
+    for (let k = 0; k < reqs.length; k += 400) await batch(newId, reqs.slice(k, k + 400));
+    if (cleared || kept) done.push(`${tab}: ${cleared} row${cleared===1?"":"s"} emptied${kept ? `, ${kept} still-listed kept` : ""}`);
+  }
+  /* the template's year cell */
+  if (a.tabs["Summary"] !== undefined && !shp(t)){ try{ const c3 = (await getVals(newId, "Summary!C3:C3"))[0] || []; if (/^\d{4}$/.test(String(c3[0] ?? "").trim())) await batch(newId, rowRequests(a.tabs["Summary"], 2, {2:new Date().getFullYear()})); }catch{} }
+  /* the template's own carboot fee changes belong to last year */
+  if (a.tabs["Carboot_entry"] !== undefined){ try{ const ij = await getVals(newId, "Carboot_entry!I1:J400"); if (/fee change/i.test(String((ij[0]||[])[0]||""))){ const reqs = []; ij.forEach((r, i) => { if (i > 0 && (r||[]).some(c => String(c ?? "").trim())) reqs.push(...rowRequests(a.tabs["Carboot_entry"], i, {8:null, 9:null})); }); if (reqs.length) await batch(newId, reqs); } }catch{} }
+  return done;
+}
+async function nyYearOf(t){ if (shp(t)) return null; try{ const c3 = String(((await getVals(t.id, "Summary!C3:C3"))[0] || [])[0] ?? "").trim(); return /^\d{4}$/.test(c3) ? +c3 : null; }catch{ return null; } }
+async function checkNewYear(manual){
+  const now = new Date(), Y = now.getFullYear(); if (!manual && now.getMonth() > 2) return false;
+  S.nyAsked = S.nyAsked || {};
+  const due = [];
+  for (const t of S.trackers){ if (t.archive) continue; if (!manual && S.nyAsked[t.id] === Y) continue;
+    const y = await nyYearOf(t); if (y !== null && y >= Y) continue; due.push({t, y: y ?? Y - 1}); }
+  if (!due.length){ if (manual) toast("All your trackers are already on " + Y); return false; }
+  openPanel(`<h2 style="margin-top:0">Happy new year! Start ${Y}?</h2>
+    <p class="muted" style="margin-top:0">For each tracker you tick: your ${Y-1} sheet stays exactly as it is (kept as your ${Y-1} copy), and a copy of <b>your own</b> sheet is made for ${Y} with the typed rows emptied. Your own columns, tabs and changes come with it; formulas aren't touched.</p>
+    <div class="stack">${due.map(d => `<label class="ck"><input type="checkbox" data-ny="${esc(d.t.id)}" ${handsOff(d.t) ? "" : "checked"}> <span><b>${esc(tName(d.t))}</b>${handsOff(d.t) ? ` <small class="muted">(hands-off: only if they want it)</small>` : ""}</span></label>`).join("")}
+    <label class="ck"><input type="checkbox" id="nyKeep" checked> Bring over items that are still listed</label>
+    <div id="nyMsg"></div>
+    <button class="btn wide" id="nyGo">Start ${Y}</button><button class="btn wide ghost" id="nyLater">Not now (ask me again)</button><button class="btn wide ghost" id="nyNo">No, keep using my sheets as they are</button></div>`);
+  const mark = () => { due.forEach(d => { S.nyAsked[d.t.id] = Y; }); save(); };
+  $("#nyLater").onclick = closePanel;
+  $("#nyNo").onclick = () => { mark(); closePanel(); toast("You can do this any time in Settings › About this app"); };
+  $("#nyGo").onclick = async () => {
+    const pick = [...document.querySelectorAll("#overlay [data-ny]:checked")].map(i => due.find(d => d.t.id === i.dataset.ny)).filter(Boolean);
+    if (!pick.length){ $("#nyMsg").innerHTML = `<div class="note warn">Tick at least one tracker.</div>`; return; }
+    const b = $("#nyGo"), m = $("#nyMsg"), keep = $("#nyKeep").checked, out = []; busy(b, true, "Making your " + Y + " sheets…");
+    for (const d of pick){
+      try{
+        const base = String(d.t.name || tName(d.t)).replace(/\s*\b(19|20)\d{2}\b\s*/g, " ").trim() || "Reseller Tracker";
+        const f = await driveCall("copy_file", {fileId:d.t.id, title:`${base} ${Y}`, parentId:"root"}); if (!f || !f.id) throw {code:"tool_error", message:"the copy wasn't made"};
+        const lines = await nyEmpty(d.t, f.id, keep);
+        const old = {...d.t}; d.t.id = f.id; d.t.name = `${base} ${Y}`; if (S.active === old.id) S.active = f.id;
+        S.trackers.push({...old, label:`${tName(old)} ${d.y}`, def:false, archive:true});
+        S.nyAsked[f.id] = Y; S.nyAsked[old.id] = Y; delete EXTRA[old.id];
+        out.push(`<b>${esc(tName(d.t))}</b>: new sheet "${esc(d.t.name)}" made. ${esc(lines.join("; ") || "Nothing to empty")}. Your ${d.y} sheet is kept as "${esc(tName(old))} ${d.y}".`);
+      }catch(e){ out.push(`<b>${esc(tName(d.t))}</b>: ${esc(mcpMsg(e, GD))}. Nothing was changed.`); }
+    }
+    mark(); SALES = null; HOME_C = null; header();
+    m.innerHTML = `<div class="note ok">${out.join("<br>")}</div>`; b.textContent = "Done ✓"; b.disabled = true; toast(`Ready for ${Y}`);
+    $("#nyLater").textContent = "Close"; $("#nyLater").onclick = () => { closePanel(); go("home"); }; $("#nyNo").remove();
+  };
+  return true;
 }
 async function checkTrackers(manual){
   if (!manual){ try{ if (localStorage.getItem("rd-upg-"+APP_VERSION)) return; }catch{} }
@@ -4088,7 +4164,7 @@ if (S.trackers.length) go(startTab);
 syncReady.finally(() => {
   header(); drawSync();
   const ju = S.justUpdated; if (ju && ju.to === APP_VERSION){ delete S.justUpdated; save(); setTimeout(() => { if (!whatsNewPanel(ju.from)) checkTrackers(false).catch(() => {}); }, 1200); }
-  else setTimeout(() => checkUpdate(false).catch(() => {}).then(() => checkTrackers(false)).catch(() => {}), 2500);
+  else setTimeout(() => checkNewYear(false).catch(() => false).then(shown => { if (!shown) return checkUpdate(false).catch(() => {}).then(() => checkTrackers(false)); }).catch(() => {}), 2500);
   const changed = JSON.stringify(S.trackers) + S.active !== before;
   if (!S.trackers.length || $("#view").querySelector(".spin.boot")) go(startTab);
   else if (changed && CUR!=="add") { SALES = null; go(CUR); }
