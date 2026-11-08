@@ -457,8 +457,8 @@ const DEFAULTS = {
   carbootDays:[6,0], returnsWorking:false, noPhotosLine:true, titleWords:"", postage:"Royal Mail Tracked 48",
   descExtra:"", cardNote:"", messages:null, photosOn:true, ebayOn:false, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, layout:null, layoutV:2, updatedAt:0
 };
-const SHOW_DEF = {sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, sale:true};
-const SHOW_LIST = [["sold","Sold"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["sale","Log a sale"]];
+const SHOW_DEF = {sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, tabs:true, sale:true};
+const SHOW_LIST = [["sold","Sold"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["tabs","Your tabs"],["sale","Log a sale"]];
 const INSTALL_TXT = `Please publish this file as an app for me, exactly as it is, with the abilities listed in the note at the top of the file. Then open it.`;
 const TEMPLATE_COPY ="https://docs.google.com/spreadsheets/d/18RVXVX2SyyFz1lcnPtnFfsP09C49bMDqZK8WXeUPIdE/copy";
 function migrate(o){
@@ -1093,9 +1093,10 @@ function wLayout(page){
   const out = list.filter(x => x && B.defs[x.id] && !seen.has(x.id) && seen.add(x.id))
     .map(x => ({id:x.id, size: B.defs[x.id].sizes.includes(x.size) ? x.size : B.defs[x.id].sizes[0]}));
   if (page === "more" && Array.isArray(saved) && !S.moreV3) ["miles","own","sheet"].forEach(id => { if (B.defs[id] && !seen.has(id)) out.push({id, size:B.defs[id].sizes[0]}); });
+  if (page === "more" && Array.isArray(saved) && !S.moreV4 && B.defs.tabs && !seen.has("tabs")) out.push({id:"tabs", size:B.defs.tabs.sizes[0]});
   return out;
 }
-function wSave(page, L){ if (page === "more") S.moreV3 = true; S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
+function wSave(page, L){ if (page === "more"){ S.moreV3 = true; S.moreV4 = true; } S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
 function wDomLayout(page){ const B = WB[page], cur = wLayout(page); return [...B.host.querySelectorAll(".wb>.wd")].map(el => ({id:el.dataset.id, size:el.dataset.size || (cur.find(x=>x.id===el.dataset.id)||{}).size})); }
 
 /* page code calls this with its widgets (defs), the standard layout (def) and optional click handling */
@@ -1450,6 +1451,7 @@ function moreWidgets(icons){
   if (S.show.miles !== false) w.miles = t("miles", "Miles", "Log business trips and claim them.");
   if (S.show.own !== false) w.own = t("own", "Make your own", "No feature for it? Describe it and Claude does it.");
   if (S.show.sheet !== false) w.sheet = t("sheet", "Your spreadsheet", "Add columns and tabs, keep it in step.");
+  if (S.show.tabs !== false) w.tabs = t("tabs", "Your tabs", "Tabs you've added, each with its own page.");
   w.help = t("help", "Help", "Ask how to do anything, or what went wrong.");
   w.setup = t("setup", "Settings", "Trackers, boxes, sections and updates.", true);
   if (S.show.sale !== false) w.sale = t("sale", "Log a sale", "Mark an item sold and make the card.");
@@ -1852,7 +1854,7 @@ function viewSheet(){
   $("#shTabGo").onclick = async () => { const b = $("#shTabGo"), m = $("#shTabMsg"), name = $("#shTab").value.trim().replace(/[\[\]*?:\/\\']/g, ""), heads = list($("#shHeads").value).slice(0, 26); const ts = readTargets("sht", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a tab name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
-    for (const t of ts){ try{ await addTab(t, name, heads); done.push(`${tName(t)}: added`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
+    for (const t of ts){ try{ await addTab(t, name, heads); done.push(`${tName(t)}: added. It has its own page in More › Your tabs`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
     busy(b, false); m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; };
 }
 
@@ -1863,6 +1865,81 @@ function viewSheet(){
    Make these changes. Profit, Days to Sell and Claim columns are never changed, and values are written as plain text or numbers, never formulas. ---------- */
 const OWN_MAX = 30, OWN_EX = ["Which items have been listed over 60 days? Suggest a lower price for each.", "Which box makes me the most profit per item?", "What did I make each weekend this month?", "Add UNTESTED to the title of every Listed item in PAR 2 that doesn't say it yet."];
 const OWN_LOCK = /^(profit|days to sell|claim \(£\)|claim)$/i;
+/* ---------- YOUR TABS: any tab a person adds to their tracker gets the same standard page: tabs along the top, a list, add / edit / delete.
+   Built from the tab's own headings (row 1), so it always looks the same and works for whatever they add. ---------- */
+const STD_TABS = /^(sales|expenses|monthly|summary|hmrc summary|carboot_entry|mileage|tutorial|claude setup|daily|claude memory|photos?)$/i;
+let UT = {t:"", tab:"", heads:[], rows:[], fcols:new Set(), sid:null};
+async function userTabs(t){
+  idCache[t.id] = await sheetIds(t.id);
+  const skip = new Set([shp(t) ? sTab(t) : "Sales", shp(t)?.e?.tab].filter(Boolean).map(x => x.toLowerCase()));
+  return Object.keys(idCache[t.id].tabs).filter(n => !STD_TABS.test(n.trim()) && !skip.has(n.toLowerCase()));
+}
+const utVal = v => { const s = String(v ?? "").trim(); if (s === "") return null; const d = parseUK(s); if (d) return {date:serial(d)};
+  if (/^-?£?\d+(\.\d+)?$/.test(s.replace(/,/g, ""))) return num(s); return s; };
+async function utLoad(t, tab){
+  const v = await getVals(t.id, `${qt(tab)}!A1:Z500`);
+  const heads = (v[0] || []).map(h => String(h ?? "").trim()); while (heads.length && !heads[heads.length-1]) heads.pop();
+  const rows = []; v.slice(1).forEach((r, i) => { if (r.some(c => String(c ?? "").trim())) rows.push({row:i+1, vals:heads.map((_, j) => String(r[j] ?? ""))}); });
+  let fcols = new Set();
+  try{ const p = await gs("get_spreadsheet", {spreadsheetId:t.id, includeGridData:true, ranges:[`${qt(tab)}!A2:Z3`], fields:["sheets.data.rowData.values.userEnteredValue"]});
+    (p?.sheets?.[0]?.data?.[0]?.rowData || []).forEach(rd => (rd.values || []).forEach((c, j) => { if (c?.userEnteredValue?.formulaValue) fcols.add(j); })); }catch{}
+  UT = {t:t.id, tab, heads, rows, fcols, sid:idCache[t.id].tabs[tab]};
+}
+async function viewTabs(){
+  const t = activeT(), V = $("#view");
+  V.innerHTML = `<h1>Your tabs</h1><p class="lead">Tabs you've added to your tracker, each with the same simple page. Add one in More › Your spreadsheet.</p>
+    <div id="utTabs" class="subtabs" role="tablist" aria-label="Your tabs"></div><div id="utBody" style="margin-top:12px"><p class="muted"><span class="spin" aria-hidden="true"></span> Loading…</p></div>`;
+  if (!t){ $("#utBody").innerHTML = `<div class="note info">Add your tracker first in More › Settings.</div>`; return; }
+  let names; try{ names = await userTabs(t); }catch(e){ $("#utBody").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; return; }
+  if (CUR !== "tabs") return;
+  if (!names.length){ $("#utTabs").innerHTML = ""; $("#utBody").innerHTML = `<div class="card stack"><b>No tabs of your own yet</b><span class="muted">Want to keep track of something else, like repairs or parts? Add a tab and it shows up here.</span><button class="btn wide" id="utAddTab">Add a tab</button></div>`; $("#utAddTab").onclick = () => go("sheet"); return; }
+  if (!names.includes(UT.tab) || UT.t !== t.id) UT.tab = names[0];
+  $("#utTabs").innerHTML = names.map(n => `<button class="chip" role="tab" data-v="${esc(n)}" aria-pressed="${n===UT.tab}" aria-selected="${n===UT.tab}">${esc(n)}</button>`).join("");
+  $("#utTabs").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; UT.tab = b.dataset.v; viewTabs(); };
+  try{ await utLoad(t, UT.tab); }catch(e){ $("#utBody").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; return; }
+  if (CUR !== "tabs") return; utDraw();
+}
+function utDraw(){
+  const t = S.trackers.find(x => x.id === UT.t), ho = handsOff(t), H = UT.heads;
+  if (!H.length){ $("#utBody").innerHTML = `<div class="note info">This tab has no headings in row 1 yet. Add some in the sheet (e.g. Date, Item, Cost) and they'll show here.</div>`; return; }
+  const ti = Math.max(0, H.findIndex(h => h && !/date|when|time/i.test(h))); const others = H.map((h, j) => j).filter(j => j !== ti && H[j]).slice(0, 3);
+  const sub = r => others.map(j => r.vals[j] ? `<span>${/date|when|time/i.test(H[j]) ? "" : esc(H[j]) + ": "}${esc(r.vals[j])}</span>` : "").join("");
+  $("#utBody").innerHTML = `<div class="stack"><button class="btn wide" id="utAdd">+ Add to ${esc(UT.tab)}</button>
+    ${ho ? `<p class="muted" style="margin:0;font-size:14px">${esc(tName(t))} is hands-off, so you can add rows but not change old ones.</p>` : ""}
+    <div class="listcard" id="utList">${UT.rows.length ? UT.rows.slice().reverse().map(r => `<button class="item" data-r="${r.row}"><div style="min-width:0;flex:1"><div class="t">${esc(r.vals[ti] || "(no " + H[ti] + ")")}</div><div class="meta">${sub(r)}</div></div></button>`).join("") : `<p class="muted">Nothing here yet.</p>`}</div>
+    <p class="muted" style="margin:0;font-size:13.5px">${UT.rows.length} row${UT.rows.length===1?"":"s"} · newest first · columns: ${esc(H.join(", "))}</p></div>`;
+  $("#utAdd").onclick = () => utPanel(null);
+  $("#utList").onclick = e => { const b = e.target.closest("[data-r]"); if (!b) return; const r = UT.rows.find(x => x.row === +b.dataset.r); if (r) utPanel(r); };
+}
+function utPanel(r){
+  const t = S.trackers.find(x => x.id === UT.t), ho = handsOff(t), H = UT.heads, ro = !!r && ho;
+  openPanel(`<h2 style="margin-top:0">${r ? esc(r.vals.find((v, j) => v && !/date|when|time/i.test(H[j])) || UT.tab) : "Add to " + esc(UT.tab)}</h2><div class="stack">
+    <div class="grid2">${H.map((h, j) => h ? `<label class="f">${esc(h)}${UT.fcols.has(j) ? ` <small>Works itself out</small>` : ""}<input type="text" data-j="${j}" value="${esc(r ? r.vals[j] : "")}" ${UT.fcols.has(j) || ro ? "readonly" : ""} ${/date/i.test(h) ? `placeholder="DD/MM/YYYY" inputmode="numeric"` : ""}></label>` : "").join("")}</div>
+    <div id="utMsg"></div>
+    ${ro ? "" : `<button class="btn wide" id="utSave">${r ? "Save changes" : "Add it"}</button>`}
+    ${r && !ho ? `<button class="btn wide ghost" id="utDel" style="color:var(--ret)">Delete this row</button>` : ""}
+    <button class="btn wide ghost" id="utClose">${ro ? "Close" : "Cancel"}</button></div>`);
+  if (!r){ const d = H.findIndex(h => /date/i.test(h)); if (d >= 0 && !UT.fcols.has(d)) $(`[data-j="${d}"]`).value = fmtD(today()); }
+  $("#utClose").onclick = closePanel;
+  $("#utSave") && ($("#utSave").onclick = async () => {
+    const btn = $("#utSave"), msg = $("#utMsg"), cells = {};
+    document.querySelectorAll("#overlay [data-j]").forEach(i => { const j = +i.dataset.j; if (UT.fcols.has(j)) return; const nv = i.value.trim(), ov = r ? String(r.vals[j] ?? "").trim() : "";
+      if (r ? nv !== ov : nv !== "") cells[j] = utVal(nv); });
+    if (!Object.keys(cells).length){ msg.innerHTML = `<div class="note info">${r ? "Nothing has changed." : "Fill in at least one box."}</div>`; return; }
+    busy(btn, true, "Saving…");
+    try{
+      let row = r ? r.row : null;
+      if (row == null){ const v = await getVals(UT.t, `${qt(UT.tab)}!A1:Z1000`); let last = 0; v.forEach((x, i) => { if (x.some(c => String(c ?? "").trim())) last = i; }); row = last + 1; }
+      else { const now = (await getVals(UT.t, `${qt(UT.tab)}!A${row+1}:Z${row+1}`))[0] || []; if (H.some((_, j) => !UT.fcols.has(j) && String(now[j] ?? "") !== String(r.vals[j] ?? ""))) throw {code:"tool_error", message:"that row changed in the sheet since you opened it. Close this and try again"}; }
+      await batch(UT.t, rowRequests(UT.sid, row, cells));
+      closePanel(); toast(r ? "Saved" : `Added to ${UT.tab}`); await utLoad(t, UT.tab); utDraw();
+    }catch(e){ msg.innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; busy(btn, false); }
+  });
+  $("#utDel") && ($("#utDel").onclick = async e => { const b = e.currentTarget; if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = "Tap again to delete"; return; }
+    busy(b, true, "Deleting…");
+    try{ const cells = {}; H.forEach((_, j) => { if (!UT.fcols.has(j)) cells[j] = null; }); await batch(UT.t, rowRequests(UT.sid, r.row, cells)); closePanel(); toast("Deleted"); await utLoad(t, UT.tab); utDraw(); }
+    catch(err){ $("#utMsg").innerHTML = `<div class="note err">${esc(mcpMsg(err))}</div>`; busy(b, false); } });
+}
 function viewOwn(){
   S.custom = Array.isArray(S.custom) ? S.custom : [];
   $("#view").innerHTML = `<h1>Your own features</h1><p class="lead">Can't find what you need? Describe it and Claude does it with your own spreadsheet. Only you can see these.</p>
@@ -1966,7 +2043,7 @@ Rules: only fill "changes" or "new_rows" if the request asks to change or add to
 }
 
 /* ---------- router ---------- */
-const TABS = ["home","add","stock","sold","more","messages","expense","setup","chat","miles","sheet","own"];
+const TABS = ["home","add","stock","sold","more","messages","expense","setup","chat","miles","sheet","own","tabs"];
 let CUR = "home";
 function go(tab){
   if(!TABS.includes(tab) || S.show[tab]===false) tab = "home"; if (!S.trackers.length && tab!=="setup" && tab!=="messages") tab = "setup";
@@ -1974,11 +2051,11 @@ function go(tab){
   if (tab !== "home" && $("#upBanner")) $("#banner").innerHTML = "";
   CUR = tab; SELECT = null; drawSelBar(); drawNav();
   if (tab !== "chat") chatStop();
-  const navTab = ["messages","expense","setup","chat","miles","sheet","own"].includes(tab) ? "more" : tab;
+  const navTab = ["messages","expense","setup","chat","miles","sheet","own","tabs"].includes(tab) ? "more" : tab;
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab===navTab ? "page" : "false"));
   const V = $("#view"); V.classList.remove("enter"); void V.offsetWidth; V.classList.add("enter");
   if (location.hash !== "#"+tab) history.replaceState(null, "", "#"+tab);
-  ({home:viewHome, add:viewAdd, stock:viewStock, sold:viewSold, more:viewMore, messages:viewMessages, expense:viewExpense, setup:viewSettings, chat:viewChat, miles:viewMiles, sheet:viewSheet, own:viewOwn})[tab](); window.scrollTo(0,0);
+  ({home:viewHome, add:viewAdd, stock:viewStock, sold:viewSold, more:viewMore, messages:viewMessages, expense:viewExpense, setup:viewSettings, chat:viewChat, miles:viewMiles, sheet:viewSheet, own:viewOwn, tabs:viewTabs})[tab](); window.scrollTo(0,0);
 }
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.tab)));
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h !== CUR) go(h); });
@@ -2013,6 +2090,7 @@ function viewMore(){
     setup: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
     sale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-9-9V3h8z"/><path d="M8 8h.01"/></svg>`,
     miles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5z"/><circle cx="7.5" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/></svg>`,
+    tabs: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 11h18"/></svg>`,
     own: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>`,
     sheet: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>`,
     share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v12M7 8l5-5 5 5"/></svg>`};
@@ -3528,7 +3606,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.28";
+const APP_VERSION = "2026.11.08.29";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3826,6 +3904,7 @@ HOW THE APP WORKS
 - Plugin in chat: Settings › Use it in Claude chat explains it. With the plugin, in any chat they can send photos to list, a sold screenshot, an expense ("tape £3.50") or miles ("drove 12 miles to the carboot"), or say "from now on…" to change their settings and sheet. No plugin on their plan: "Set up a Claude project instead".
 - Miles: More › Miles logs business trips into a Mileage tab that works out the HMRC claim (55p a mile for the first 10,000 business miles in the tax year from 6 April 2026, 25p after) and adds it to expenses and HMRC Box 18. Claim miles or real car costs, not both.
 - Your spreadsheet: More › Your spreadsheet keeps the sheet's dropdowns in step with their settings, adds columns or tabs, and can mark a tracker as someone else's (hands-off: only new rows, never layout changes).
+- Your tabs: More › Your tabs. Every tab they added to their tracker gets the same page, built from its row-1 headings: tabs along the top, a list (newest first), "+ Add to …", tap a row to edit or delete it. Columns with formulas are read-only. On a hands-off tracker they can only add rows. Their own Sales columns show in New item ("Your own columns"), the item details and Edit details.
 - Make your own: More › Make your own. They describe a feature in their own words; it reads only their active tracker and shows every change in a before/after table before making it. It can't change formulas, other people's sheets, settings or the app.
 - Chat: More › Chat. Tap Reply under a message to reply; the top shows who's online. Anyone with the app can read it, so no personal details.
 - Bottom bar: Home, Stock, + New (centre), Sold, More (Expenses, Messages, Chat, Miles, Make your own, Your spreadsheet, Help, Settings, Log a sale). Home: net profit with a monthly chart, this month, stock waiting, sales by month chart, recent sales, items waiting longest, check against the eBay app.
