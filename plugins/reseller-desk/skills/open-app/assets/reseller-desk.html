@@ -3213,7 +3213,9 @@ function viewSettings(){
     <details class="grp"><summary><span>About this app<span class="gh">Version ${APP_VERSION} and upgrades</span></span></summary><div class="stack">
       <p style="margin:0">Version ${APP_VERSION}. ${S.publisher?"You send the updates.":"It checks for updates by itself and asks before changing anything."}</p>
       <p class="muted" style="margin:0;font-size:14px">App updates never change your sheets by themselves. When an update has something for your spreadsheets, the app asks first.</p>
+      <label class="ck"><input type="checkbox" id="updOn" ${S.updOn!==false?"checked":""}> Tell me when there's a new version</label>
       <button class="btn ghost wide" id="updCheck">Check for app updates</button>
+      <button class="btn ghost wide" id="updNew">What's new</button>
       <button class="btn ghost wide" id="updBack">Go back to the previous version</button>
       <button class="btn ghost wide" id="trkCheck">Update my spreadsheets</button><p class="muted" style="margin:0;font-size:13.5px">App updates can bring spreadsheet updates too. They're only for trackers made from the template, and only added when you say so.</p><div id="updCheckMsg"></div>
     </div></details>
@@ -3279,6 +3281,8 @@ function viewSettings(){
   $("#chOn") && ($("#chOn").onclick = e => { const b = e.currentTarget; if (!b.dataset.sure){ b.dataset.sure = "1"; b.textContent = "Tap again: anyone with the app can read and write it"; return; } chSet(true, b); });
   $("#chOff") && ($("#chOff").onclick = e => chSet(false, e.currentTarget));
   $("#updBack").onclick = goBack;
+  $("#updOn").onchange = e => { e.stopPropagation(); S.updOn = e.target.checked; save(); toast(S.updOn ? "You'll be told about new versions" : "Only when you check"); };
+  $("#updNew").onclick = () => whatsNewPanel(null);
   $("#trkCheck").onclick = async () => { const b = $("#trkCheck"); busy(b, true, "Checking your trackers…"); try{ await checkTrackers(true); }catch(e){ $("#updCheckMsg").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } busy(b, false); };
   $("#updCheck").onclick = async () => { const b = $("#updCheck"), m = $("#updCheckMsg"); busy(b, true, "Checking…");
     try{ const u = await checkUpdate(true); m.innerHTML = u ? `<div class="note ok">Version ${esc(u.ver)} is ready. Tap Update now at the top.</div>` : `<div class="note ok">You have the newest version.</div>`; if (u) window.scrollTo(0,0); }
@@ -3426,7 +3430,14 @@ function viewWelcome(){
         <div><div class="lab">Where do you get your stock? <small>Pick all that apply. You can add more any time.</small></div><div class="chips" id="wBuy"></div>
           <div class="row" style="flex-wrap:nowrap;gap:8px;margin-top:8px"><input type="text" id="wBuyNew" placeholder="Somewhere else? Type it"><button class="btn small ghost" id="wBuyAdd">Add</button></div>
           <div class="stack" id="wBuyQ" style="gap:8px;margin-top:10px"></div></div>
+        <div><div class="lab">New versions of the app <small>New features and fixes. You can change this in Settings › About this app.</small></div>
+          <div class="stack" id="wUpd" style="gap:8px">
+            <button class="item" data-v="1" aria-pressed="${S.updOn!==false}" style="border:1.5px solid var(--line);border-radius:var(--r);padding:12px"><span class="tick">✓</span><div style="flex:1"><div class="t">Tell me when there's a new version (recommended)</div><div class="meta">One tap to update, then it shows what's new and asks what you want switched on.</div></div></button>
+            <button class="item" data-v="0" aria-pressed="${S.updOn===false}" style="border:1.5px solid var(--line);border-radius:var(--r);padding:12px"><span class="tick">✓</span><div style="flex:1"><div class="t">Only when I check</div><div class="meta">Settings › About this app › Check for app updates.</div></div></button>
+          </div></div>
         <button class="btn wide" id="wDone">Finish</button></div>`);
+    let updOn = S.updOn !== false; const drawUpd = () => $("#wUpd").querySelectorAll("[data-v]").forEach(b => { const on = (b.dataset.v==="1") === updOn; b.classList.toggle("picked", on); b.setAttribute("aria-pressed", on); }); drawUpd();
+    $("#wUpd").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; updOn = b.dataset.v === "1"; drawUpd(); };
     $("#wSell").onclick = e => { const b = e.target.closest("button"); if (!b) return; const on = b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed", on); on ? sellsOn.add(b.dataset.v) : sellsOn.delete(b.dataset.v); };
     const names = () => [...new Set([...PLACE_SUGGEST.map(([n]) => n), ...picked.keys()])];
     const drawBuy = () => {
@@ -3438,7 +3449,7 @@ function viewWelcome(){
     $("#wBuyAdd").onclick = () => { const n = $("#wBuyNew").value.trim(); if (!n) return; if (!picked.has(n)) picked.set(n, {name:n, ...placeDefaults(n)}); $("#wBuyNew").value = ""; drawBuy(); };
     $("#wBuyQ").onchange = e => { const card = e.target.closest("[data-wp]"); if (card && e.target.matches("[data-wf]")) picked.get(card.dataset.wp).fee = e.target.checked; };
     $("#wDone").onclick = () => { S.username = $("#wName").value.trim(); if (picked.size){ S.places = [...picked.values()]; syncPlaces(S); }
-      S.sells = [...sellsOn].join(", ") || "eBay"; save(); WSTEP = 1; toast("You're all set"); go("home"); setTimeout(chatSetupPanel, 500); };
+      S.sells = [...sellsOn].join(", ") || "eBay"; S.updOn = updOn; save(); WSTEP = 1; toast("You're all set"); go("home"); setTimeout(chatSetupPanel, 500); };
   }
 }
 
@@ -3611,19 +3622,47 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.30";
+const APP_VERSION = "2026.11.08.31";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
 let UPD = null;
 async function checkUpdate(manual){
   if (S.publisher && !manual) return null;
+  if (!manual && S.updOn === false) return null;
   if (!manual){ try{ const t = +localStorage.getItem("rd-plug-check")||0; if (Date.now()-t > 6*3600e3){ localStorage.setItem("rd-plug-check", Date.now()); checkPlugin().catch(() => {}); } }catch{ checkPlugin().catch(() => {}); } }
   if (!manual){ try{ const t = +localStorage.getItem("rd-upd-check")||0; if (Date.now()-t < 6*3600e3) return null; localStorage.setItem("rd-upd-check", Date.now()); }catch{} }
   const v = (await getVals(UPD_SHEET, "A2:D2"))[0] || [];
   const ver = String(v[0]||"").trim(), fid = String(v[1]||"").trim();
   UPD = ver && fid && ver > APP_VERSION ? {ver, fid, notes:String(v[2]||"")} : null;
   if (UPD) drawUpdateBanner(); return UPD;
+}
+/* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
+const WHATS_NEW = [
+  {v:"2026.11.08.21", items:[
+    {text:"Miles: log trips to carboots and auctions; the HMRC claim is worked out and added to your expenses.", show:"miles"},
+    {text:"Chat: reply to messages and see who's online.", show:"chat"},
+    {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
+    {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
+  {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
+  {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
+  {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
+  {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
+  {v:"2026.11.08.31", items:[{text:"Choose how you hear about new versions (Settings › About this app), and this What's new screen."}]}
+];
+function whatsNewPanel(from){
+  const vs = WHATS_NEW.filter(w => from ? w.v > from && w.v <= APP_VERSION : true).slice(from ? 0 : -4);
+  const items = vs.flatMap(w => w.items);
+  if (!items.length){ if (!from) toast("Nothing new to show"); return false; }
+  openPanel(`<h2 style="margin-top:0">What's new</h2><p class="muted" style="margin-top:0">${from ? `You're now on version ${esc(APP_VERSION)}.` : `Recent changes, up to version ${esc(APP_VERSION)}.`} Tick what you want on your More page.</p>
+    <div class="stack">${items.map(i => i.show ? `<label class="ck" style="align-items:flex-start"><input type="checkbox" data-wn="${i.show}" ${S.show[i.show]!==false?"checked":""}> <span>${esc(i.text)}</span></label>` : `<div class="row" style="gap:10px;align-items:flex-start;flex-wrap:nowrap"><span class="badge" style="flex:none">New</span><span>${esc(i.text)}</span></div>`).join("")}
+    <p class="muted" style="margin:0;font-size:14px">You can change these any time in Settings › Menu.${S.updOn===false?"":" Turn off update messages in Settings › About this app."}</p>
+    <button class="btn wide" id="wnDone">Done</button></div>`);
+  $("#wnDone").onclick = () => { const was = {...S.show}; document.querySelectorAll("#overlay [data-wn]").forEach(i => { S.show[i.dataset.wn] = i.checked; });
+    const back = Object.keys(S.show).filter(k => S.show[k] && was[k] === false);
+    if (back.length && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L)) back.forEach(id => { if (!L.some(x => x.id===id)) L.push({id, size:"s"}); }); });
+    save(); closePanel(); if (CUR === "more") go("more"); if (from) setTimeout(() => checkTrackers(false).catch(() => {}), 400); };
+  return true;
 }
 /* PLUGIN: the chat skills don't update themselves. E2 of the update sheet holds the newest plugin version; a banner points to the website. */
 async function checkPlugin(){
@@ -3654,6 +3693,7 @@ async function doUpdate(){
     if (!page.includes("<title>Reseller Desk</title>") || !page.includes(UPD.ver)) throw {code:"bad_file"};
     const art = await window.claude?.use?.("artifact"); if (!art) throw {code:"no_artifact"};
     const doc = fullDoc(page);
+    S.justUpdated = {from:APP_VERSION, to:UPD.ver}; save(); try{ await writeChain; }catch{}
     await art.publish(doc);
     m.innerHTML = `<div class="note ok">Updated. The app reloads by itself.</div>`;
   }catch(e){
@@ -3994,7 +4034,9 @@ const startTab = location.hash.slice(1) || "home";
 const before = JSON.stringify(S.trackers) + S.active;
 if (S.trackers.length) go(startTab);
 syncReady.finally(() => {
-  header(); drawSync(); setTimeout(() => checkUpdate(false).catch(() => {}).then(() => checkTrackers(false)).catch(() => {}), 2500);
+  header(); drawSync();
+  const ju = S.justUpdated; if (ju && ju.to === APP_VERSION){ delete S.justUpdated; save(); setTimeout(() => { if (!whatsNewPanel(ju.from)) checkTrackers(false).catch(() => {}); }, 1200); }
+  else setTimeout(() => checkUpdate(false).catch(() => {}).then(() => checkTrackers(false)).catch(() => {}), 2500);
   const changed = JSON.stringify(S.trackers) + S.active !== before;
   if (!S.trackers.length || $("#view").querySelector(".spin.boot")) go(startTab);
   else if (changed && CUR!=="add") { SALES = null; go(CUR); }
