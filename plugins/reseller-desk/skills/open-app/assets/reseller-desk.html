@@ -464,7 +464,7 @@ const DEFAULT_MSGS = [
 const DEFAULTS = {
   v:2, trackers:[], active:"", username:"", boxes:"", skuOn:true, sources:"", sells:"eBay",
   carbootDays:[6,0], returnsWorking:false, noPhotosLine:true, titleWords:"", postage:"Royal Mail Tracked 48",
-  descExtra:"", cardNote:"", messages:null, photosOn:true, ebayOn:false, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, layout:null, layoutV:2, updatedAt:0
+  descExtra:"", cardNote:"", messages:null, photosOn:true, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, layout:null, layoutV:2, updatedAt:0
 };
 const SHOW_DEF = {sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, tabs:true, sale:true};
 const SHOW_LIST = [["sold","Sold"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["tabs","Your tabs"],["sale","Log a sale"]];
@@ -2443,7 +2443,6 @@ async function saveItem(){
     if (P && P.fee){ const auto = isBoot(P.name) ? targets.filter(t => !shp(t)) : []; if (auto.length) askBootFee(auto, d); const rest = targets.filter(t => !auto.includes(t)); if (rest.length) askPlaceFee(rest, d, P); }
     btn.textContent = "Saved ✓"; btn.disabled = true; toast("Saved to tracker");
     if (S.photosOn){ try{ await saveListing({sku:ADD.sku, item:title, status:"Listed"}, {...ADD.listing, title, condition_description:$("#fCond").value, description_html:$("#fDesc").value}); }catch{} }
-    if (S.ebayOn){ const fh = $("#phSave"); fh.insertAdjacentHTML("afterend", `<button class="btn wide ghost" id="toEbay" style="margin-top:10px">Send to eBay as a draft</button>`); $("#toEbay").onclick = () => draftPanel({sku:ADD.sku, item:title}, {...ADD.listing, title, condition_description:$("#fCond").value, description_html:$("#fDesc").value}, null); }
     if (S.photosOn && ADD.photos.length){
       const ps = $("#phSave"); const r = {sku:ADD.sku, item:title, status:"Listed"};
       try{ await savePhotos(r, ADD.photos, (n, of) => { ps.innerHTML = `<div class="note info" style="margin-top:8px"><span class="spin" aria-hidden="true"></span> Saving photo ${n} of ${of} to Google Drive…</div>`; });
@@ -2549,7 +2548,7 @@ function itemPanel(r){
       ${r.status!=="Listed"?`<tr><td>Sold for</td><td>${esc(r.sold||"-")}</td></tr><tr><td>Postage</td><td>${esc(r.ship||"£0.00")}</td></tr><tr><td>Fees</td><td>${esc(r.fees||"£0.00")}</td></tr><tr><td>Profit</td><td><b>${esc(r.profit||"-")}</b></td></tr><tr><td>Date sold</td><td>${esc(r.soldOn||"-")}</td></tr>${r.via?`<tr><td>Sold on</td><td>${esc(r.via)}</td></tr>`:""}${r.days?`<tr><td>Days to sell</td><td>${esc(r.days)}</td></tr>`:""}`:""}
     </tbody></table>
     <div class="stack" style="margin-top:16px">
-      ${r.status==="Listed"?`<button class="btn wide" id="pSold">Mark as sold</button>${S.ebayOn?`<button class="btn wide ghost" id="pEbay">Send to eBay as a draft</button>`:""}`:""}
+      ${r.status==="Listed"?`<button class="btn wide" id="pSold">Mark as sold</button>`:""}
       ${r.status==="Sold"?`<button class="btn wide" id="pCard">Make a thank-you card</button><button class="btn wide ghost" id="pMsg">Message the buyer</button><button class="btn wide ghost" id="pRet">Return or refund</button>`:""}
       <button class="btn wide ghost" id="pEdit">Edit details</button>
       ${r.sku?`<button class="btn wide ghost" id="pCopy">Copy SKU</button>`:""}
@@ -2560,7 +2559,6 @@ function itemPanel(r){
   $("#pMsg") && ($("#pMsg").onclick = () => { MSG_ROW = r.row; closePanel(); go("messages"); });
   $("#pDel").onclick = () => deletePanel([r]);
   $("#pEdit").onclick = () => editPanel(r);
-  $("#pEbay") && ($("#pEbay").onclick = e => draftFromItem(r, e.currentTarget));
   drawGallery(r, $("#phBox .galHost")); $("#pPhotos").onclick = () => addPhotosTo(r, $("#phBox"));
   $("#pCard") && ($("#pCard").onclick = () => cardPanel(r));
   extraRowVals(activeT(), r).then(({cols, vals}) => { const tb = document.querySelector("#overlay table.check tbody"); if (!tb || !cols.length) return;
@@ -3217,32 +3215,6 @@ function viewSettings(){
     </div>
     
     </div></details>
-    <details class="grp"><summary><span>Send drafts to eBay<span class="gh">Optional, takes some setup</span></span></summary><div class="stack">
-      <p style="margin:0">Have Claude put your listings straight onto eBay as drafts, ready for you to check and publish. It's free, but it takes a bit of setup, so it's here for people who want it.</p>
-      <div class="note info"><b>Computer only.</b> The eBay connector runs on your computer, so sending drafts only works in the Claude desktop app on that computer, while it's switched on. It doesn't work from your phone. Everything else in Reseller Desk works on your phone as normal.</div>
-      <label class="ck"><input type="checkbox" id="ebOn" ${S.ebayOn?"checked":""}> Show "Send to eBay as a draft" buttons</label>
-      <div class="card stack" style="gap:8px"><b>What you need first</b>
-        <ul class="steps" style="list-style:disc;padding-left:20px;margin:0">
-          <li>A <b>computer</b> (Windows or Mac) with the <b>Claude desktop app</b>. Not your phone.</li>
-          <li>Your <b>eBay seller account</b>, and a free <b>eBay developer account</b> at <a href="https://developer.ebay.com" target="_blank" rel="noopener">developer.ebay.com</a>. The two logins can use different emails.</li>
-          <li><b>Node.js</b>, a free helper program from <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>. Claude will tell you which one to get.</li>
-          <li>About <b>30 to 45 minutes</b>, once. After that it just works.</li>
-        </ul>
-        <p class="muted" style="margin:0;font-size:13.5px">Your eBay keys stay on your computer. Claude never needs you to paste them into the chat.</p>
-      </div>
-      <div class="card stack" style="gap:10px"><b>How to set it up</b>
-        <ol class="steps">
-          <li><span>Tap <b>Copy the setup message</b> below.</span></li>
-          <li><span>On your computer, open the <b>Claude desktop app</b>, start a new chat and paste it. Claude takes you through it one small step at a time, and you say <b>"done"</b> after each one.</span></li>
-          <li><span>When it's finished, tick the box above. On any item, tap <b>Send to eBay as a draft</b>.</span></li>
-        </ol>
-        <button class="btn small ghost" id="ebCopy" style="align-self:flex-start">Copy the setup message</button>
-        <p class="muted" style="margin:0;font-size:13.5px">It uses a free, open-source connector made by an independent developer, not eBay. It runs on your computer, so sending drafts works from Claude on that computer.</p>
-      </div>
-      <button class="btn wide ghost" id="ebMore">Ask for more</button>
-      <p class="muted" style="margin:-6px 0 0;font-size:13.5px">Want this on your phone, or something else entirely? Ask, and Claude will explain your options.</p>
-    
-    </div></details>
     </section>
     <section class="setsec"><div class="setsec-h"><b>Chat</b><span>One group chat for everyone with the app.</span></div>
     <details class="grp"><summary><span>Group chat<span class="gh">${S.chatJoined ? "You're in" : "Not joined"}</span></span></summary><div class="stack">
@@ -3288,7 +3260,7 @@ function viewSettings(){
     const back = Object.keys(sh).filter(k => sh[k] && was[k] === false && k !== "sold");
     if (back.length && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L)) back.forEach(id => { if (!L.some(x => x.id===id)) L.push({id, size:"s"}); }); });
     const cats = $("#cats").value.split("\n").map(x=>x.trim()).filter(Boolean); if (cats.length) S.cats = cats;
-    S.noPhotosLine = $("#noPh").checked; S.photosOn = $("#phOn").checked; if ($("#ebOn")) S.ebayOn = $("#ebOn").checked; S.returnsWorking = $("#retW").checked; S.titleWords = $("#tw").value.trim();
+    S.noPhotosLine = $("#noPh").checked; S.photosOn = $("#phOn").checked; S.returnsWorking = $("#retW").checked; S.titleWords = $("#tw").value.trim();
     document.querySelectorAll("[data-lbl]").forEach(i => { const t = S.trackers.find(x=>x.id===i.dataset.lbl); if (t) t.label = i.value.trim(); }); };
   bindTargets("via");
   $("#addVia").onclick = async () => {
@@ -3347,8 +3319,6 @@ function viewSettings(){
   $("#updCheck").onclick = async () => { const b = $("#updCheck"), m = $("#updCheckMsg"); busy(b, true, "Checking…");
     try{ const u = await checkUpdate(true); m.innerHTML = u ? `<div class="note ok">Version ${esc(u.ver)} is ready. Tap Update now at the top.</div>` : `<div class="note ok">You have the newest version.</div>`; if (u) window.scrollTo(0,0); }
     catch(e){ m.innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } busy(b, false); };
-  $("#ebCopy").onclick = e => copy(EBAY_SETUP_TXT, e.target);
-  $("#ebMore").onclick = () => { helpPanel(); setTimeout(() => { const i = $("#hIn"); if (i){ i.value = "I'd like more from the app: "; i.focus(); } }, 50); };
   $("#mkProj").onclick = () => projectPanel();
   $("#imp").onclick = () => $("#importFile").click();
 }
@@ -3631,66 +3601,16 @@ function addPhotosTo(r, host){
 }
 
 
-/* ---------- EBAY DRAFTS (optional): listing saved next to the photos, sent through the person's own eBay connector in Claude ---------- */
-const EBAY_SETUP_TXT = `Help me install the free eBay connector on this computer, step by step. It's this open-source project: https://github.com/YosefHayim/ebay-mcp (download it as a ZIP from the green Code button, no Git needed).
-
-I'm not technical, so:
-- Tell me ONE step at a time and wait for me to say "done" before the next.
-- Explain any technical words, and say exactly what I should see on screen.
-- At the end, connect it to this Claude desktop app and check it works by listing my eBay account details.
-- NEVER ask me to paste my eBay Cert ID, Client Secret, password or sign-in code into this chat. Tell me to paste them only into the black Command Prompt window.
-
-Please follow this order, because it avoids the usual traps:
-1. Check I have Node.js 24 or newer (type: node -v). If not, send me to nodejs.org.
-2. In the extracted folder, run: npm install -g pnpm, then pnpm install, then pnpm run build. (Plain npm install fails.)
-3. On developer.ebay.com, make a PRODUCTION keyset. It shows "Your keyset is currently disabled" until I open Alerts & Notifications and switch on "Exempted from Marketplace Account Deletion" (it's only my own account and I store no one's data).
-4. On the User Tokens (eBay Sign-In) tab, with Production selected, click Add eBay Redirect URL. Display title: Reseller Desk. For privacy policy, auth accepted and auth declined, use any https web page I own or https://szymonszmulik.github.io. Then tick the OAuth Enabled circle and press Test Sign-in. Note the RuName (it's not secret).
-5. Run pnpm run setup. Production, my marketplace, then App ID, Cert ID and RuName (copy and paste them, because "i" and "l" look alike). Pick "Generate OAuth URL".
-6. IMPORTANT: the wizard's own sign-in link asks for too many permissions and eBay rejects it (invalid_scope or invalid_request). Instead, build me a short link myself from my App ID and RuName (I can tell you those, they're not secret): https://auth.ebay.com/oauth2/authorize?client_id=APPID&redirect_uri=RUNAME&response_type=code&scope=https://api.ebay.com/oauth/api_scope%20https://api.ebay.com/oauth/api_scope/sell.inventory%20https://api.ebay.com/oauth/api_scope/sell.account%20https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly . I sign in with my seller account, agree, then copy the whole address of the page I land on and paste it ONCE, only into the black window, within a couple of minutes.
-7. Skip the "install AI skills" question. Then fully quit and reopen the Claude desktop app, start a new chat, and check it by listing my eBay account details. It must only ever create drafts, never publish.`;
+/* ---------- LISTING TEXT saved next to the photos ---------- */
 async function saveListing(r, L){
   const fid = await itemFolder(r, true);
   const data = {sku:r.sku, title:L.title, condition:L.condition, condition_description:L.condition_description, item_specifics:L.item_specifics, description_html:L.description_html, saved:new Date().toISOString()};
   await driveCall("create_file", {title:"listing.json", contentMimeType:"application/json", textContent:JSON.stringify(data, null, 2), disableConversionToGoogleType:true, parentId:fid});
 }
-async function getListing(r){
-  try{
-    const fid = await itemFolder(r, false); if (!fid) return null;
-    const f = (await dSearch(`parentId = '${fid}' and title = 'listing.json' and trashed = false`))[0]; if (!f) return null;
-    let b = b64From(await driveCall("download_file_content", {fileId:f.id})).replace(/^data:[^,]+,/, "");
-    let txt; try{ txt = decodeURIComponent(escape(atob(b))); }catch{ txt = b; }
-    return {...JSON.parse(txt), folder:fid};
-  }catch{ return null; }
-}
-function draftText(r, L, folder){
-  const spec = (L && L.item_specifics || []).filter(p => Array.isArray(p) && p.length >= 2).map(([k,v]) => `- ${k}: ${v}`).join("\n");
-  return `Use my eBay connector to create this as an eBay listing, but DON'T publish it. Leave it unpublished as a draft so I can check it and add the price. Then tell me in one line what you made.
-
-SKU (custom label): ${r.sku || "(none)"}
-Title: ${(L && L.title) || r.item}
-Condition: ${(L && L.condition) || "(work it out from the title)"}
-${L && L.condition_description ? `Condition description: ${L.condition_description}\n` : ""}${spec ? `Item specifics:\n${spec}\n` : ""}${L && L.description_html ? `Description (HTML):\n${L.description_html}\n` : ""}
-Photos: ${folder ? `in my Google Drive folder https://drive.google.com/drive/folders/${folder} — add them to the listing in name order.` : "none saved, so leave photos empty and remind me to add them."}`;
-}
-function draftPanel(r, L, folder){
-  const txt = draftText(r, L, folder);
-  openPanel(`<h2 style="margin-top:0">Send to eBay as a draft</h2><div class="stack">
-    <ol class="steps"><li><span>Tap <b>Copy</b>.</span></li><li><span>On your computer, open a new chat in the Claude desktop app (where your eBay connector is installed).</span></li><li><span>Paste and send. Claude makes the draft; you check it on eBay and publish.</span></li></ol>
-    <button class="btn wide" id="drCopy">Copy</button>
-    <details><summary class="muted" style="cursor:pointer;font-size:14.5px">See what's being copied</summary><textarea readonly style="min-height:160px;font-family:var(--mono);font-size:13px;margin-top:8px">${esc(txt)}</textarea></details>
-    <p class="muted" style="margin:0;font-size:13.5px">Not set up yet? More › Settings › Send drafts to eBay.</p>
-    <button class="btn wide ghost" id="drClose">Close</button></div>`);
-  $("#drCopy").onclick = e => copy(txt, e.target); $("#drClose").onclick = closePanel;
-}
-async function draftFromItem(r, btn){
-  busy(btn, true, "Getting the listing…");
-  const L = await getListing(r); busy(btn, false);
-  draftPanel(r, L, L ? L.folder : await itemFolder(r, false).catch(() => null));
-}
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.38";
+const APP_VERSION = "2026.11.08.39";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3713,7 +3633,6 @@ const WHATS_NEW = [
     {text:"Your spreadsheet: add columns and tabs, and your dropdowns keep up with your settings.", show:"sheet"},
     {text:"Make your own: describe a feature in your own words and Claude does it on your sheet, showing you every change first.", show:"own"}]},
   {v:"2026.11.08.26", items:[{text:"Settings › Menu can now hide any section on the More page."}]},
-  {v:"2026.11.08.38", items:[{text:"Send drafts to eBay now lists what you need first, and the setup message walks you through the tricky parts."}]},
   {v:"2026.11.08.27", items:[{text:"Expenses has tabs along the top: one for each type, carboot fees and mileage."}]},
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
@@ -4088,7 +4007,6 @@ HOW THE APP WORKS
 - It reads and writes the user's own Google Sheet "tracker" (a copy of the Reseller Tracker template). Sales tab columns: A Item, B Status (Listed/Sold/Returned), C Cost, D Sold Price, E Shipping, F Fees, G Profit (formula), H Date Bought, I Date Sold, J Days to Sell (formula), K SKU, L Bought from, plus an optional "Sold on" column. Expenses tab: Date, Amount, Reason, Category. Optional Carboot_entry tab fills itself in with entry fees (Saturday £2, Sunday £4); to change one day's fee, tap it in Expenses (it is kept in the tab's "Fee change date" and "Fee" columns).
 - Photos: when saving a new item, its photos go to Google Drive › Reseller Desk Photos › box › item folder (switch in Settings › Listings). Tapping an item shows its photos and has "+ Add photos". The folder link is kept in a hidden "Photos" column.
 - New people see a 3-step setup: connect Google (Claude Settings › Connectors › Google Sheets and Google Drive), make or add a tracker, a few questions.
-- eBay drafts (optional): More › Settings › Send drafts to eBay. Needs a free eBay developer account and the free open-source eBay connector installed in the Claude desktop app on a computer ("Copy the setup message" gives a message to paste into Claude there). Then "Send to eBay as a draft" on an item copies a message to paste into Claude on that computer. It never works from a phone: the connector runs on their computer, so it only works in the Claude desktop app on that computer while it's on. Everything else works on the phone. If someone wants more (phone drafts or any new feature), explain their options kindly; for new features they can use More › Make your own, and Claude can change the app for them.
 - Tracker upgrades: More › Settings › About this app › "Update my spreadsheets" adds missing new pieces (e.g. Sold on, hidden Photos, the Mileage tab). It backs up the sheet first (a copy in Google Drive), only adds columns at the end, never changes typed data, and skips sheets that don't match the template.
 - Updates: the app checks for a newer version by itself and shows "Update now" at the top; More › Settings › About this app › Check for updates. If updating fails, they can say "open reseller desk" in a Claude chat (with the plugin added) and Claude puts the newest version in.
 - Getting it for a friend: they go to https://szymonszmulik.github.io and follow the steps (Customize › Plugins › Add › Add marketplace › SzymonSzmulik/reseller-desk, turn on Sync automatically, add Reseller Desk, then say "open reseller desk and pin it", which puts the app in their Claude sidebar). Already have the app but it isn't in the sidebar: say "pin reseller desk" in a Claude chat. Works on free and paid Claude plans (free plans have lower usage limits, so lots of listings in one day may hit the limit sooner). The app has no share button.
