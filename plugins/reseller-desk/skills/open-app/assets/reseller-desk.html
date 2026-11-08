@@ -624,6 +624,20 @@ const shp = t => (t && t.map && t.map.s) ? t.map : null;
 const sTab = t => shp(t) ? shp(t).s.tab : "Sales";
 const sHr = t => shp(t) ? (shp(t).s.hr || 0) : 0;
 const sRange = (t, a, b) => `${shp(t) ? qt(sTab(t)) : "Sales"}!${a}:${b}`;
+/* EXTRA COLUMNS: any column the person added to the Sales tab themselves (More › Your spreadsheet, or by hand). The app shows and fills them too. */
+const EXTRA = {}, EXTRA_SKIP = /^(sold on|photos?|profit|days to sell)$/i;
+async function extraCols(t, force){
+  if (!t) return [];
+  if (!force && EXTRA[t.id]) return EXTRA[t.id];
+  const m = shp(t), hr = m ? (m.s.hr || 0) : 0;
+  const h = (await getVals(t.id, sRange(t, `A${hr+1}`, `ZZ${hr+1}`)))[0] || [];
+  const used = new Set(m ? [...m.s.c, m.s.via].filter(x => x != null && x >= 0) : [0,1,2,3,4,5,6,7,8,9,10,11]);
+  const out = []; h.forEach((n, i) => { n = String(n ?? "").trim(); if (n && !used.has(i) && !EXTRA_SKIP.test(n)) out.push({col:i, name:n}); });
+  return (EXTRA[t.id] = out);
+}
+const xKey = n => String(n).trim().toLowerCase();
+const extraInputs = (cols, vals={}) => cols.length ? `<div class="grid2">${cols.map(c => `<label class="f">${esc(c.name)}<input type="text" data-xc="${esc(c.name)}" value="${esc(vals[xKey(c.name)] ?? "")}"></label>`).join("")}</div>` : "";
+const readExtra = host => { const o = {}; (host ? host.querySelectorAll("[data-xc]") : []).forEach(i => { o[xKey(i.dataset.xc)] = i.value.trim(); }); return o; };
 const eTab = t => shp(t) ? (shp(t).e ? shp(t).e.tab : null) : "Expenses";
 const MONTH_N = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
 /* read a date written almost any way; df = "dmy" or "mdy" for 03/04/2026 style */
@@ -1833,7 +1847,7 @@ function viewSheet(){
   $("#shColGo").onclick = async () => { const b = $("#shColGo"), m = $("#shColMsg"), name = $("#shCol").value.trim(); const ts = readTargets("shc", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a column name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
-    for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); done.push(`${tName(t)}: column ${colL(c)}`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
+    for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); delete EXTRA[t.id]; done.push(`${tName(t)}: column ${colL(c)}. It now shows in New item and Edit details`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
     busy(b, false); SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; };
   $("#shTabGo").onclick = async () => { const b = $("#shTabGo"), m = $("#shTabMsg"), name = $("#shTab").value.trim().replace(/[\[\]*?:\/\\']/g, ""), heads = list($("#shHeads").value).slice(0, 26); const ts = readTargets("sht", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a tab name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
@@ -2252,6 +2266,7 @@ function renderListing(){
       `<div class="pv" id="pv" ${pvOn?"":"hidden"}>${cleanHtml(L.description_html)}</div><textarea id="fDesc" ${pvOn?"hidden":""} style="min-height:200px;font-family:var(--mono);font-size:14px">${esc(L.description_html||"")}</textarea>`, "desc",
       `<div class="tog" id="dTog"><button data-v="preview" aria-pressed="${pvOn}">Preview</button><button data-v="html" aria-pressed="${!pvOn}">HTML</button></div>`)}
     <div id="saveMsg"></div>
+    <div id="fExtra"></div>
     <button class="btn wide" id="saveItem">Save to tracker</button>
     <button class="btn wide ghost" id="startOver">Start a new item</button>`;
   out.onclick = e => { const b = e.target.closest("[data-copy]"); if(!b) return; const k = b.dataset.copy;
@@ -2264,6 +2279,10 @@ function renderListing(){
     $("#pv").closest(".field").querySelector("small").textContent = p ? "How buyers will see it. Copy gives you the HTML for eBay's HTML tab." : "Edit the HTML here. In eBay, switch to the HTML tab, then paste."; };
   $("#saveItem").onclick = saveItem;
   $("#startOver").onclick = () => { ADD = freshAdd(); viewAdd(); };
+  /* columns they added themselves: one box each, filled into every tracker that has a column with that name */
+  (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
+    const h = $("#fExtra"); if (h && seen.size) h.innerHTML = `<div class="lab">Your own columns <small>Optional. Saved into the matching columns of your sheet.</small></div>${extraInputs([...seen.values()], ADD.extra || {})}`;
+    if (h) h.oninput = () => { ADD.extra = readExtra(h); }; })();
   if (ADD.saved){ $("#saveItem").disabled = true; $("#saveItem").textContent = "Saved ✓"; }
 }
 async function saveItem(){
@@ -2274,13 +2293,15 @@ async function saveItem(){
   let d = parseUK(f.dateTxt); let moved = "";
   const P = placeOf(ADD.from);
   if (P && P.days.length){ const c = placeDate(P, d); if (+c !== +d){ moved = `${P.name} is only on ${dayNames(P.days)}, so the date was moved to ${DAYS[c.getDay()]} ${fmtD(c)}.`; d = c; } }
+  const XIN = readExtra($("#fExtra"));
   busy(btn, true, "Saving…");
   try{
     if (!ADD.sku && skuOn()) ADD.sku = await newSku(ADD.box);
     const done = [];
     for (const t of targets){
       const sid = await tabId(t.id, sTab(t)); const row = shp(t) ? await firstEmptyRow(t.id, qt(sTab(t)), colL(shp(t).s.c[0]), 1000) : await firstEmptyRow(t.id, "Sales", "A", 997);
-      await batch(t.id, rowRequests(sid, row, mapCells(t, {0:title, 1:"Listed", 2:num(f.cost), 4:0, 5:0, 7:{date:serial(d)}, ...(ADD.sku ? {10:ADD.sku} : {}), 11:ADD.from})));
+      const xs = {}; try{ for (const c of await extraCols(t)){ const v = XIN[xKey(c.name)]; if (v) xs[100 + c.col] = v; } }catch{}
+      await batch(t.id, rowRequests(sid, row, mapCells(t, {0:title, 1:"Listed", 2:num(f.cost), 4:0, 5:0, 7:{date:serial(d)}, ...(ADD.sku ? {10:ADD.sku} : {}), 11:ADD.from, ...xs})));
       const back = await salesRow(t, row);
       if (!back[0] || (hasField(t, 10) && ADD.sku ? back[0][10] !== ADD.sku : String(back[0][0]).trim() !== title.trim())) throw {code:"tool_error", message:`couldn't confirm row ${row+1} in ${tName(t)}`};
       done.push(`${tName(t)}: row ${row+1}`);
@@ -2411,6 +2432,13 @@ function itemPanel(r){
   $("#pEbay") && ($("#pEbay").onclick = e => draftFromItem(r, e.currentTarget));
   drawGallery(r, $("#phBox .galHost")); $("#pPhotos").onclick = () => addPhotosTo(r, $("#phBox"));
   $("#pCard") && ($("#pCard").onclick = () => cardPanel(r));
+  extraRowVals(activeT(), r).then(({cols, vals}) => { const tb = document.querySelector("#overlay table.check tbody"); if (!tb || !cols.length) return;
+    tb.insertAdjacentHTML("beforeend", cols.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(vals[xKey(c.name)] || "-")}</td></tr>`).join("")); }).catch(() => {});
+}
+async function extraRowVals(t, r){
+  const cols = await extraCols(t); if (!cols.length || r.row == null) return {cols:[], vals:{}};
+  const raw = (await getVals(t.id, sRange(t, `A${r.row+1}`, `ZZ${r.row+1}`)))[0] || [];
+  const vals = {}; cols.forEach(c => { vals[xKey(c.name)] = String(raw[c.col] ?? ""); }); return {cols, vals};
 }
 
 /* ---------- EDIT AN ITEM: every column except the two formula ones ---------- */
@@ -2431,10 +2459,12 @@ function editPanel(r){
       ${money("xFees","Fees you paid",r.fees)}
       ${VIA_COLS[S.active]>=0?`<label class="f">Sold on<select id="xVia"><option value="">-</option>${[...new Set([...sells(), r.via].filter(Boolean))].map(s=>`<option ${r.via===s?"selected":""}>${esc(s)}</option>`).join("")}</select></label>`:""}
     </div>
+    <div id="xExtra"></div>
     <p class="muted" style="margin:0;font-size:15px">Profit and days to sell work themselves out in the sheet.</p>
     ${targetChips("edit", [S.active], "Change in")}
     <div id="xMsg"></div><button class="btn wide" id="xSave">Save changes</button><button class="btn wide ghost" id="xClose">Cancel</button></div>`);
   bindTargets("edit"); $("#xClose").onclick = closePanel;
+  let XOLD = {}; extraRowVals(activeT(), r).then(({cols, vals}) => { XOLD = vals; const h = $("#xExtra"); if (h) h.innerHTML = extraInputs(cols, vals); }).catch(() => {});
   $("#xSave").onclick = async () => {
     const btn = $("#xSave"), msg = $("#xMsg"); const cells = {}; const bad = [];
     const str = (col, id, old) => { const v = $(id).value.trim(); if (v !== String(old||"").trim()) cells[col] = v===""?null:v; };
@@ -2443,10 +2473,11 @@ function editPanel(r){
     str(0,"#xItem",r.item); str(1,"#xStatus",r.status); mon(2,"#xCost",r.cost); mon(3,"#xSold",r.sold); mon(4,"#xShip",r.ship); mon(5,"#xFees",r.fees);
     dt(7,"#xBought",r.bought,"date bought"); dt(8,"#xSoldOn",r.soldOn,"date sold"); str(10,"#xSku",r.sku); str(11,"#xFrom",r.from);
     const via = $("#xVia") ? $("#xVia").value : r.via; const viaChanged = via !== r.via;
+    const XNEW = readExtra($("#xExtra")); const xChanged = Object.keys(XNEW).filter(k => XNEW[k] !== String(XOLD[k] ?? "").trim());
     if (cells[0]===null) bad.push("a title");
     if (typeof cells[10]==="string" && (SALES||[]).some(x => x.row!==r.row && x.sku.trim()===cells[10])) bad.push("a SKU that isn't already used");
     if (bad.length){ msg.innerHTML = `<div class="note warn">Please give ${esc(bad.join(" and "))}.</div>`; return; }
-    if (!Object.keys(cells).length && !viaChanged){ msg.innerHTML = `<div class="note info">Nothing has changed.</div>`; return; }
+    if (!Object.keys(cells).length && !viaChanged && !xChanged.length){ msg.innerHTML = `<div class="note info">Nothing has changed.</div>`; return; }
     const targets = readTargets("edit", [S.active]); if (!targets.length){ msg.innerHTML = `<div class="note warn">Pick at least one tracker.</div>`; return; }
     busy(btn, true, "Saving…"); const done = [];
     try{
@@ -2454,6 +2485,7 @@ function editPanel(r){
         const sid = await tabId(t.id, sTab(t)); const v = await salesV(t);
         const i = findRow(v, r, r.status); if (i<0){ done.push(`${tName(t)}: not found, left alone`); continue; }
         const c = {...cells}; if (viaChanged){ const vc = await viaCol(t.id); if (vc>=0) c[100+vc] = via || null; }
+        if (xChanged.length){ try{ for (const xc of await extraCols(t)){ const k = xKey(xc.name); if (xChanged.includes(k)) c[100 + xc.col] = XNEW[k] || null; } }catch{} }
         const mc = mapCells(t, c); if (!Object.keys(mc).length){ done.push(`${tName(t)}: nothing to change there`); continue; }
         await batch(t.id, rowRequests(sid, i, mc)); done.push(`${tName(t)}: row ${i+1}`);
       }
@@ -3496,7 +3528,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.27";
+const APP_VERSION = "2026.11.08.28";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
