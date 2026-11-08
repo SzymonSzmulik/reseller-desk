@@ -7,7 +7,7 @@
     user: {}
     artifact: {}
     downloads: true
-  Also publish this same file alongside it at the path reseller-desk.html (the app uses it to make share links). Then open it.
+  Also publish this same file alongside it at the path reseller-desk.html (the app uses it to send updates). Then open it.
 -->
 <title>Reseller Desk</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -3013,21 +3013,18 @@ function viewSettings(){
     </div>
     
     </div></details>
-    <details class="grp"><summary><span>Use it in Claude chat<span class="gh">Make a skill or project</span></span></summary><div class="stack">
+    <details class="grp"><summary><span>Use it in Claude chat<span class="gh">The Reseller Desk plugin</span></span></summary><div class="stack">
     <div class="card stack" style="gap:12px">
-      <p style="margin:0">Want to just send Claude a photo or a sold screenshot in a normal chat and have it do everything? Make your own skill. It's built from your settings above, so Claude follows the same rules as this app.</p>
-      ${S.trackers.length?"":`<div class="note warn">Add your tracker first, so the skill knows which sheet to use.</div>`}
-      <button class="btn wide" id="mkSkill" ${S.trackers.length?"":"disabled"}>${S.skillAt?"Make my skill again":"Make my skill"}</button>
-      <button class="btn wide ghost" id="mkProj" ${S.trackers.length?"":"disabled"}>Set up a Claude project instead</button>
-      <div id="skMsg"></div>
+      <p style="margin:0">Want to just send Claude a photo or a sold screenshot in a normal chat and have it do everything? Add the Reseller Desk plugin. It reads your settings from this app, so Claude follows the same rules, and it updates itself.</p>
       <ol class="steps">
-        <li><span>Tap <b>Make my skill</b> and save the file reseller-desk-skill.zip.</span></li>
-        <li><span>On claude.ai, go to <b>Settings → Capabilities</b> and turn on <b>Skills</b> (and <b>Code execution</b> if it asks).</span></li>
-        <li><span>Under Skills, tap <b>Upload skill</b> and pick reseller-desk-skill.zip. Make sure it's switched on.</span></li>
-        <li><span>Check <b>Settings → Connectors</b> has Google Sheets and Google Drive connected.</span></li>
-        <li><span>In any chat, try: "List this" with photos, or "Sold" with an order screenshot.</span></li>
+        <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
+        <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
+        <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
+        <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
-      <p class="muted" style="margin:0;font-size:15px">Changed your settings? Make the skill again and upload it over the old one.</p>
+      <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
+      <p class="muted" style="margin:0;font-size:14.5px">Can't add plugins on your Claude plan? Use a Claude project instead.</p>
+      <button class="btn wide ghost" id="mkProj" ${S.trackers.length?"":"disabled"}>Set up a Claude project instead</button>
     </div>
     
     </div></details>
@@ -3067,7 +3064,7 @@ function viewSettings(){
       <p style="margin:0">Everyone who installed the app gets an "Update now" button next time they open it, and the plugin on GitHub picks it up within about 15 minutes. Send this after I've made changes you're happy with.</p>
       <p class="muted" style="margin:0;font-size:14px">Spreadsheet updates go with it: ${esc(TRACKER_CHECKS.map(c => c.name).join(", "))}. Each person's app offers them for their own template-copy trackers, with a backup first.</p>
       <label class="f">What's new <small>Optional, one short line they'll see.</small><input type="text" id="pubNotes" placeholder="e.g. New charts and photo folders"></label>
-      <label class="f">New plugin version <small>Only if you also put a new plugin on GitHub (e.g. 0.5.0). Everyone gets a "Get it" banner.</small><input type="text" id="pubPlug" inputmode="decimal" placeholder="Leave empty if not"></label>
+      <label class="f">New plugin version <small>Usually leave this empty: GitHub updates the plugin by itself. Only for people who uploaded the plugin file by hand.</small><input type="text" id="pubPlug" inputmode="decimal" placeholder="Leave empty if not"></label>
       <button class="btn wide" id="pubGo">Send version ${APP_VERSION} to everyone</button><div id="pubMsg"></div>
     </div></details>`:""}
     </section>
@@ -3129,7 +3126,6 @@ function viewSettings(){
     busy(btn, false);
   };
   $("#exp").onclick = exportSettings;
-  $("#mkSkill").onclick = makeSkill;
   $("#pubGo") && ($("#pubGo").onclick = publishUpdate);
   $("#chNameSet") && ($("#chNameSet").onchange = e => { const n = e.target.value.trim(); if (n){ S.chatName = n; save(); toast("Chat name saved"); } });
   $("#chUnhide") && ($("#chUnhide").onclick = () => { S.chatHide = []; save(); viewSettings(); toast("Everyone's messages show again"); });
@@ -3471,7 +3467,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.23";
+const APP_VERSION = "2026.11.08.24";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3493,7 +3489,7 @@ async function checkPlugin(){
   if (!S.pluginSeen){ S.pluginSeen = v; save(); return; }
   if (!newer(v, S.pluginSeen)) return;
   const el = document.createElement("div");
-  el.innerHTML = `<div class="card stack" style="gap:10px;margin:6px 0 14px;border-color:var(--accent)"><div><b>New plugin version ${esc(v)}</b><div class="muted" style="font-size:14.5px">The app updates by itself, but the chat skills (listings from photos, sold screenshots, expenses, miles) need the new plugin. Download it and upload it in Claude › Customize › Plugins.</div></div>
+  el.innerHTML = `<div class="card stack" style="gap:10px;margin:6px 0 14px;border-color:var(--accent)"><div><b>New plugin version ${esc(v)}</b><div class="muted" style="font-size:14.5px">The app updates by itself, but the chat skills (listings from photos, sold screenshots, expenses, miles) need the new plugin. If you turned on Sync automatically you already have it. If not, go to Customize › Plugins and tap Check for updates.</div></div>
     <div class="row"><a class="btn small" href="${SITE}" target="_blank" rel="noopener">Get it</a><button class="btn small ghost" data-pg="1">I've got it</button></div></div>`;
   el.querySelector("[data-pg]").onclick = () => { S.pluginSeen = v; save(); el.remove(); };
   $("#banner").append(el);
@@ -3699,50 +3695,32 @@ Read the row back and tell them in one line what changed and where.
 }
 let ZIPLIB = null;
 function loadZip(){ return ZIPLIB || (ZIPLIB = new Promise((res, rej) => { if (window.JSZip) return res(window.JSZip); const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"; sc.onload = () => res(window.JSZip); sc.onerror = () => { ZIPLIB = null; rej({code:"zip"}); }; document.head.append(sc); })); }
-async function makeSkill(){
-  const btn = $("#mkSkill"), m = $("#skMsg"); busy(btn, true, "Making your skill…");
-  try{
-    for (const t of S.trackers){ try{ await viaCol(t.id); }catch{} }
-    const md = skillMd();
-    const JSZip = await loadZip(); const zip = new JSZip(); zip.file("reseller-desk/SKILL.md", md);
-    const blob = await zip.generateAsync({type:"blob"});
-    const dl = await window.claude?.use?.("downloads"); if (!dl) throw {code:"unavailable"};
-    await dl.save({filename:"reseller-desk-skill.zip", data:blob});
-    S.skillAt = Date.now(); save();
-    m.innerHTML = `<div class="note ok"><b>Skill saved.</b> Now upload it in Claude: Settings → Capabilities → Skills → Upload skill.</div>`;
-  }catch(e){
-    if (e?.code==="declined" || e?.code==="cancelled"){ busy(btn, false); return; }
-    const md = skillMd();
-    m.innerHTML = `<div class="note info">Couldn't save the file here. Instead: in Claude, go to Settings → Capabilities → Skills, choose to create a skill, and paste this in. Or paste it into a Claude chat and say "Turn this into a skill for me".</div><textarea readonly style="min-height:160px;font-family:var(--mono);font-size:13px;margin-top:8px">${esc(md)}</textarea><button class="btn small ghost" id="skCopy" style="margin-top:8px">Copy</button>`;
-    $("#skCopy").onclick = ev => copy(md, ev.target);
-  }
-  busy(btn, false);
-}
 
 
 /* ---------- SETUP QUESTION: also use it in Claude chat? ---------- */
 function chatSetupPanel(){
   S.chatAsked = true; save();
   openPanel(`<h2 style="margin-top:0">Use it in Claude chat too?</h2>
-    <p style="margin-top:0">You're all set up in the app. Do you also want to just send Claude a photo or a sold screenshot in a normal chat, and have it list, log and make cards for you?</p>
+    <p style="margin-top:0">You're all set up in the app. With the Reseller Desk plugin you can also just send Claude a photo or a sold screenshot in a normal chat, and it lists, logs and makes cards for you.</p>
     <div class="stack">
-      <button class="item" id="csSkill" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">Yes, make my skill</div><div class="meta">Easiest. One file you upload once. Works in any chat.</div></div></button>
-      <button class="item" id="csProj" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">Yes, set up a Claude project</div><div class="meta">Claude remembers more, like notes and changes you ask for. A few more taps.</div></div></button>
-      <button class="item" id="csNo" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">No thanks, just the app</div><div class="meta">You can do this later in Settings.</div></div></button>
+      <button class="item" id="csPlug" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">Yes, show me how to add it</div><div class="meta">About a minute. It updates itself after that.</div></div></button>
+      <button class="item" id="csHave" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">I've already got it</div><div class="meta">Then you're done. Try sending Claude some photos.</div></div></button>
+      <button class="item" id="csNo" style="border:1.5px solid var(--line);border-radius:var(--r);padding:14px"><div style="flex:1"><div class="t">No thanks, just the app</div><div class="meta">You can do this later in Settings › Use it in Claude chat.</div></div></button>
     </div>`);
   $("#csNo").onclick = () => { closePanel(); toast("You can set this up later in Settings"); };
-  $("#csProj").onclick = () => projectPanel();
-  $("#csSkill").onclick = () => {
-    openPanel(`<h2 style="margin-top:0">Make your skill</h2><div class="stack">
-      <button class="btn wide" id="mkSkill">Make my skill</button><div id="skMsg"></div>
+  $("#csHave").onclick = () => { closePanel(); toast("You're all set"); };
+  $("#csPlug").onclick = () => {
+    openPanel(`<h2 style="margin-top:0">Add the Reseller Desk plugin</h2><div class="stack">
       <ol class="steps">
-        <li><span>Tap <b>Make my skill</b> and save reseller-desk-skill.zip.</span></li>
-        <li><span>On claude.ai, go to <b>Settings → Capabilities</b> and turn on <b>Skills</b> (and <b>Code execution</b> if it asks).</span></li>
-        <li><span>Under Skills, tap <b>Upload skill</b>, pick the file and make sure it's switched on.</span></li>
-        <li><span>Try it: in any chat, send photos and say "List this".</span></li>
+        <li><span>In Claude, go to <b>Customize › Plugins</b>, then <b>Add › Add marketplace</b>.</span></li>
+        <li><span>Type <b>SzymonSzmulik/reseller-desk</b>, add it, and turn on <b>Sync automatically</b>.</span></li>
+        <li><span>Find <b>Reseller Desk</b> in the list and tap <b>Add</b>.</span></li>
+        <li><span>In any chat, try: photos with "List this", a sold screenshot, "tape £3.50" or "drove 12 miles to the carboot".</span></li>
       </ol>
-      <button class="btn wide ghost" id="skDone">Done</button></div>`);
-    $("#mkSkill").onclick = makeSkill; $("#skDone").onclick = closePanel;
+      <a class="btn wide ghost" href="https://szymonszmulik.github.io" target="_blank" rel="noopener">Open the guide</a>
+      <button class="btn wide ghost" id="pgProj">My plan can't add plugins</button>
+      <button class="btn wide" id="skDone">Done</button></div>`);
+    $("#skDone").onclick = closePanel; $("#pgProj").onclick = () => projectPanel();
   };
 }
 function projectText(){ return skillMd().replace(/^---[\s\S]*?---\s*/, "") + `
@@ -3779,11 +3757,16 @@ HOW THE APP WORKS
 - It reads and writes the user's own Google Sheet "tracker" (a copy of the Reseller Tracker template). Sales tab columns: A Item, B Status (Listed/Sold/Returned), C Cost, D Sold Price, E Shipping, F Fees, G Profit (formula), H Date Bought, I Date Sold, J Days to Sell (formula), K SKU, L Bought from, plus an optional "Sold on" column. Expenses tab: Date, Amount, Reason, Category. Optional Carboot_entry tab fills itself in with entry fees (Saturday £2, Sunday £4); to change one day's fee, tap it in Expenses (it is kept in the tab's "Fee change date" and "Fee" columns).
 - Photos: when saving a new item, its photos go to Google Drive › Reseller Desk Photos › box › item folder (switch in Settings › Listings). Tapping an item shows its photos and has "+ Add photos". The folder link is kept in a hidden "Photos" column.
 - New people see a 3-step setup: connect Google (Claude Settings › Connectors › Google Sheets and Google Drive), make or add a tracker, a few questions.
-- eBay drafts (optional): More › Settings › Send drafts to eBay. Needs a free eBay developer account and the free open-source eBay connector installed in the Claude desktop app on a computer ("Copy the setup message" gives a message to paste into Claude there). Then "Send to eBay as a draft" on an item copies a message to paste into Claude on that computer. It doesn't work from the phone yet. If someone wants more (phone drafts or any new feature), explain their options kindly; for new features they can attach reseller-desk.html in a Claude chat and describe what they want, and Claude can change the app for them.
-- Tracker upgrades: More › Settings › About this app › "Check my trackers for upgrades" adds missing new columns (e.g. Sold on, hidden Photos). It backs up the sheet first (a copy in Google Drive), only adds columns at the end, never changes typed data, and skips sheets that don't match the template.
-- Updates: the app checks for a newer version by itself and shows "Update now" at the top; More › Settings › About this app › Check for updates. If updating fails, they can attach the newest reseller-desk.html in a Claude chat and ask Claude to update their app with it.
-- Getting it for a friend: they go to https://szymonszmulik.github.io, download the plugin and follow the steps there. The app has no share button.
-- Bottom bar: Home, Stock, + New (centre), Sold, More (Expenses, Messages, Help, Settings, Log a sale). Home: net profit with a monthly chart, this month, stock waiting, sales by month chart, recent sales, items waiting longest, check against the eBay app.
+- eBay drafts (optional): More › Settings › Send drafts to eBay. Needs a free eBay developer account and the free open-source eBay connector installed in the Claude desktop app on a computer ("Copy the setup message" gives a message to paste into Claude there). Then "Send to eBay as a draft" on an item copies a message to paste into Claude on that computer. It doesn't work from the phone yet. If someone wants more (phone drafts or any new feature), explain their options kindly; for new features they can use More › Make your own, and Claude can change the app for them.
+- Tracker upgrades: More › Settings › About this app › "Update my spreadsheets" adds missing new pieces (e.g. Sold on, hidden Photos, the Mileage tab). It backs up the sheet first (a copy in Google Drive), only adds columns at the end, never changes typed data, and skips sheets that don't match the template.
+- Updates: the app checks for a newer version by itself and shows "Update now" at the top; More › Settings › About this app › Check for updates. If updating fails, they can say "open reseller desk" in a Claude chat (with the plugin added) and Claude puts the newest version in.
+- Getting it for a friend: they go to https://szymonszmulik.github.io and follow the steps (Customize › Plugins › Add › Add marketplace › SzymonSzmulik/reseller-desk, turn on Sync automatically, add Reseller Desk, then say "open reseller desk"). Needs a paid Claude plan. The app has no share button.
+- Plugin in chat: Settings › Use it in Claude chat explains it. With the plugin, in any chat they can send photos to list, a sold screenshot, an expense ("tape £3.50") or miles ("drove 12 miles to the carboot"), or say "from now on…" to change their settings and sheet. No plugin on their plan: "Set up a Claude project instead".
+- Miles: More › Miles logs business trips into a Mileage tab that works out the HMRC claim (55p a mile for the first 10,000 business miles in the tax year from 6 April 2026, 25p after) and adds it to expenses and HMRC Box 18. Claim miles or real car costs, not both.
+- Your spreadsheet: More › Your spreadsheet keeps the sheet's dropdowns in step with their settings, adds columns or tabs, and can mark a tracker as someone else's (hands-off: only new rows, never layout changes).
+- Make your own: More › Make your own. They describe a feature in their own words; it reads only their active tracker and shows every change in a before/after table before making it. It can't change formulas, other people's sheets, settings or the app.
+- Chat: More › Chat. Tap Reply under a message to reply; the top shows who's online. Anyone with the app can read it, so no personal details.
+- Bottom bar: Home, Stock, + New (centre), Sold, More (Expenses, Messages, Chat, Miles, Make your own, Your spreadsheet, Help, Settings, Log a sale). Home: net profit with a monthly chart, this month, stock waiting, sales by month chart, recent sales, items waiting longest, check against the eBay app.
 - Older wording of the tabs: Home (year numbers, monthly profit, check against the eBay app), New (photos + details → Claude writes the listing: title, SKU, item specifics, condition, description with Preview/HTML switch and Copy buttons → "Save to tracker"), Stock (Listed/Returned/All, search, tap an item for Mark as sold, Edit details, Copy SKU, Delete; "Select" to delete several), Sold (sold items with profit, totals, by-site table; tap one for thank-you card, message the buyer, return or refund, edit), Messages (ready-made buyer messages with {buyer} {item} {sku} {price} {seller} blanks, Edit/New, plus a line added to every listing and the thank-you card text), Expenses (+ Add an expense, all spending incl. automatic carboot fees, tap to edit/delete).
 - Top bar: tracker name button switches between trackers; ? opens this help. More › Settings (groups that fold open, changes save by themselves): add/remove trackers (paste a Google Sheets link, tap "Add tracker"), short names, "Save new items and sales here by default", "Make me a new empty tracker" (copies the blank template into their Google Drive and adds it), username, postage, boxes (start of each SKU, e.g. WOR 1 - 4821), where you buy, where you sell, "Add a Sold on column", "I buy at carboots" switch and carboot days, expense types (one per line), show/hide Sold, Messages, Expenses, listing options, "Save settings", "Use it in Claude chat too" (Make my skill: downloads a skill zip built from their settings; upload in claude.ai Settings → Capabilities → Skills → Upload skill. Or "Set up a Claude project instead": copies project instructions to paste into a new Claude project; Claude then keeps a reseller-desk-notes.md file of their preferences), backup file save/load, home screen shortcut steps, "Give it to a friend".
 - Log a sale: from Home "Log a sale" or an item's "Mark as sold". Can read an eBay order screenshot. Asks where it sold if more than one site. "Make the thank-you card too" makes a Google Doc card in Google Drive.

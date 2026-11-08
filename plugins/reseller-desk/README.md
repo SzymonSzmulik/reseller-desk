@@ -17,8 +17,14 @@ For people who buy at carboots, charity shops, Marketplace or auctions and resel
 ## Works with your own spreadsheet
 Say "set up reseller desk". It opens the app, and the app walks you through linking your sheet with proper buttons: it matches your columns and checks with you before writing anything. No sheet? It makes one. The chat skills then use the same settings.
 
+## Install
+In Claude: **Customize › Plugins › Add › Add marketplace**, enter `SzymonSzmulik/reseller-desk`, turn on **Sync automatically**, then add **Reseller Desk**. Guide: https://szymonszmulik.github.io
+
+## Updates
+The plugin updates itself (with Sync automatically on) and the app updates itself (tap Update now when it asks).
+
 ## Needs
-Google Drive and Google Sheets connected in Claude.
+A paid Claude plan (for plugins), and Google Drive and Google Sheets connected in Claude.
 
 ## Skills
 | Skill | Use it when |

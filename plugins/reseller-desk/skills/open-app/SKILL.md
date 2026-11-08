@@ -1,6 +1,6 @@
 ---
 name: open-app
-description: Use when someone says "open reseller desk", "open the app", "set up the app", "show me my numbers", or installs this plugin and wants the Reseller Desk app. Puts the Reseller Desk app (home screen, new item, stock, sold, expenses, chat) into their Claude as their own private page and opens it.
+description: Use when someone says "open reseller desk", "open the app", "set up the app", "show me my numbers", or installs this plugin and wants the Reseller Desk app. Puts the Reseller Desk app (home screen, new item, stock, sold, expenses, miles, chat) into their Claude as their own private page and opens it.
 ---
 
 # Open the Reseller Desk app
@@ -18,6 +18,7 @@ List their artifacts (Artifact tool, `action: "list"`) and look for one titled *
    - `file_path`: the copied `reseller-desk.html`
    - `icon`: `store`
    - `description`: `Your reseller app: add items, log sales, see stock and profit, linked to your Google Sheet.`
+   - `files`: `{"reseller-desk.html": "reseller-desk.html"}` (the same file again, at that path; the app reads it for updates)
    - `capabilities`, exactly:
 ```json
 {"artifact":{},"db":{"rules":[{"path":"owner","read":"admin","write":"admin"}]},"downloads":{},"mcp":{"servers":[{"server":"Google Sheets","tools":["get_values","update_spreadsheet","get_spreadsheet"]},{"server":"Google Drive","tools":["create_file","share_file","search_files","download_file_content","copy_file"]}]},"sample":{"images":true},"user":{}}
