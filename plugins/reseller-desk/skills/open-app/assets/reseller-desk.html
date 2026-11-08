@@ -272,14 +272,16 @@ details.grp .card,details.grp .tcard{background:var(--sunk);border-color:transpa
 .wsub{font-size:14px;color:var(--muted);margin:6px 0 0;line-height:1.35;flex:none}
 .wgrow{flex:1 1 0;min-height:4px}
 .wcap{margin:2px 0 0!important;font-size:12.5px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wd .chart{margin-top:0;padding-top:6px;flex:none}
+.wd .chart{margin-top:0;padding-top:6px;flex:0 1 auto;min-height:0;display:flex}
+.wd .chart svg{width:100%;height:100%;max-height:100%;min-height:0}
+.wd .hbar .tr{margin-bottom:5px}
 .wd .chart .tip{transform:translate(-50%,-115%)}
 .wd .spark{display:block;max-width:100%;flex:none}
-.wk{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:1 1 auto;margin-top:6px;min-height:0;grid-auto-rows:1fr}
+.wk{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:1 1 auto;margin-top:6px;min-height:0;grid-auto-rows:minmax(min-content,1fr)}
 .wd-in>.wk:first-child{margin-top:0}
-.wk>div{background:var(--surface);padding:7px 9px;min-width:0;display:flex;flex-direction:column;justify-content:center}
-.wk span{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wk b{font-family:var(--mono);font-weight:500;font-size:16.5px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.wk>div{background:var(--surface);padding:5px 9px;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.wk span{font-size:10px;line-height:1.3;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk b{font-family:var(--mono);font-weight:500;font-size:15.5px;line-height:1.25;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .wk i{font-style:normal;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wl{display:flex;flex-direction:column;margin-top:4px;min-height:0}
 .wr{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:baseline;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:5px 0;height:46px;width:100%;color:inherit}
@@ -296,11 +298,18 @@ details.grp .card,details.grp .tcard{background:var(--sunk);border-color:transpa
 .wlink{border:0;background:none;color:var(--fg);font-weight:700;font-size:13px;text-transform:none;letter-spacing:0;padding:2px 0;text-decoration:underline;text-underline-offset:3px}
 .wtab{font-size:14px;margin-top:2px}.wtab td,.wtab th{padding:6px 2px}.wtab.tight td,.wtab.tight th{padding:3px 2px;font-size:13.5px}.wtab.tight th{font-size:11px}
 .wd .hbar{margin-top:6px;font-size:14px}
-.wshort,.wtile{height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+.wshort,.wtile{height:100%;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:0}
+.wshort>div,.wtile>div{min-height:0;overflow:hidden}
 .wshort.m,.wtile.m{flex-direction:row;align-items:center;justify-content:flex-start;gap:16px}
-.wshort b,.wtile b{display:block;font-family:var(--display);font-weight:700;font-stretch:88%;font-size:18px;line-height:1.15}
-.wshort span:not(.wico),.wtile span:not(.wico){display:block;font-size:13.5px;color:var(--muted);line-height:1.3;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-.wico{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--hl);color:var(--hl-ink);flex:none}
+.wshort b,.wtile b{display:block;font-family:var(--display);font-weight:700;font-stretch:85%;font-size:17px;line-height:1.12}
+.wshort span:not(.wico),.wtile span:not(.wico){display:block;font-size:13.5px;color:var(--muted);line-height:1.3;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.wask{height:100%;display:flex;flex-direction:column;gap:10px;justify-content:center}
+.wask p{margin:0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.waskbox{flex:1;min-height:0;max-height:64px;display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:8px 8px 8px 14px;color:var(--faint);font-size:15px}
+.waskbox span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.waskbox i{display:grid;place-items:center;color:var(--muted)}.waskbox i svg{width:22px;height:22px}
+.waskbox b{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:var(--hl);color:var(--hl-ink);flex:none}.waskbox b svg{width:20px;height:20px}
+.wico{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--hl);color:var(--hl-ink);flex:none}
 .wico svg{width:22px;height:22px}
 .wfoot{display:flex;justify-content:center;margin-top:14px}
 .wsplit{display:grid;grid-template-columns:minmax(0,38fr) minmax(0,62fr);gap:18px;height:100%;align-items:end}.wsplit>div{min-width:0}
@@ -1110,7 +1119,7 @@ function wBoard(host, page, defs, def){
 function wDraw(page){
   const B = WB[page]; if (!B || !B.host.isConnected) return;
   const W = B.host.clientWidth || cw(true); const {cols, gap} = wGrid(W);
-  const u = Math.max(48, Math.floor((W - gap*(cols-1)) / cols)); B.cols = cols; B.u = u; B.gap = gap;
+  const u = Math.max(44, Math.floor((W - gap*(cols-1)) / cols * (cols > 8 ? .86 : cols > 4 ? .95 : .97))); B.cols = cols; B.u = u; B.gap = gap;
   const L = wLayout(page), ed = WEDIT===page;
   B.host.innerHTML = `${ed ? W_TOOL : ""}
     <div class="wb${ed?" editing":""}" data-page="${page}" style="--g:${gap}px;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${u}px">${L.map(x => wCell(B, x)).join("")}</div>
@@ -1263,6 +1272,8 @@ function spark(vals, w, h, o={}){
     return `<rect x="${x.toFixed(1)}" y="${a.toFixed(1)}" width="${bwid.toFixed(1)}" height="${Math.max(1.5, b-a).toFixed(1)}" rx="1.5" fill="${v<0?"var(--chart-neg)":"var(--chart)"}" opacity="${o.now===undefined||o.now===i?1:.45}"/>`; }).join("")}</svg>`;
 }
 const wIcon = {
+  cam: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`,
+  send: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
   ask: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 10h6M9 14h4"/></svg>`,
   sale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-9-9V3h8z"/><path d="M8 8h.01"/></svg>`,
   box: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>`
@@ -1293,7 +1304,8 @@ function homeWidgets(D){
       const cap = z==="m" || z==="w" ? "" : `<p class="cap wcap">What buyers paid each month for items, before your costs. Highlighted: ${FULLM[D.cm]}.</p>`;
       return wh("Money taken each month", `<em>${esc(gbp(tot))}</em>`) + wgrow + barChart(D.salesM, MONTHS, {now:D.cm, w, h: h - 36 - (cap?40:0), values: z!=="m" || w > 400, label:`Money taken each month in ${D.year}`}) + cap; }},
     ask: {name:"Ask Claude", desc:"Tell Claude what to do in your own words, with screenshots.", sizes:["m","s"], tap:() => askPanel(), render:(z) =>
-      `<div class="wshort ${z}"><span class="wico">${wIcon.ask}</span><div><b>Ask Claude</b><span>${z==="m" ? "\u201cMark the Kodak sold\u201d, \u201cadd tape £3.50\u201d, or send a screenshot" : "Do this, do that"}</span></div></div>`},
+      z==="m" ? `<div class="wask"><div class="wh"><span>Ask Claude</span></div><div class="waskbox"><span>Mark the Kodak sold, add tape £3.50…</span><i>${wIcon.cam}</i><b>${wIcon.send}</b></div><p>Type anything, or send a screenshot. You check every change first.</p></div>`
+      : `<div class="wshort ${z}"><span class="wico">${wIcon.ask}</span><div><b>Ask Claude</b><span>Do this, do that</span></div></div>`},
     logsale: {name:"Log a sale", desc:"A shortcut to mark an item sold and make the card.", sizes:["s","m"], tap:() => soldPanel(null), render:(z) =>
       `<div class="wshort ${z}"><span class="wico">${wIcon.sale}</span><div><b>Log a sale</b><span>Mark an item sold${z==="m"?" and make the thank-you card":""}</span></div></div>`},
     stock: {name:"Waiting to sell", desc:"How many items are listed and what you paid for them. Tap to open Stock.", sizes:["s","m"], tap:() => go("stock"), render:(z,{w}) =>
@@ -1439,7 +1451,7 @@ function expWidgets(Z){
     cats: {name:"What it went on", desc:"Spending by type, biggest first.", sizes:["s","m","l"], render:(z,{w,h}) => {
       if (!Z.catRows.length) return wh("What it went on") + `<p class="muted wempty">Nothing spent in this period.</p>`;
       if (z==="s"){ const t = Z.catRows[0]; return wh("Most spent on") + wgrow + wbig(gbp(t[1]), w, z) + wmeta(esc(t[0])); }
-      const n = wfit(h - 24, 40); return wh("What it went on", `<em>${esc(periodName(Z.range))}</em>`) + hbars(Z.catRows.slice(0, n)) + (Z.catRows.length>n?wmeta(`+${Z.catRows.length-n} more`):""); }},
+      const n = wfit(h - 44, 46); return wh("What it went on", `<em>${esc(periodName(Z.range))}</em>`) + hbars(Z.catRows.slice(0, n)) + (Z.catRows.length>n?wmeta(`+${Z.catRows.length-n} more`):""); }},
     boots: {name:"Carboot fees", desc:"Entry fees for carboot days in the period.", sizes:["s"], render:(z,{w}) => wh("Carboot fees") + wgrow + wbig(gbp(Z.bootTotal), w, z) + wmeta(`${Z.bt.length} day${Z.bt.length===1?"":"s"} · ${esc(periodName(Z.range))}`)}
   };
 }
@@ -2120,6 +2132,7 @@ function switchPanel(){
 function viewMore(){
   const ic = {
     expense: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>`,
+    chat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3 3-4.8 6-4.8s5.4 1.8 6 4.8"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.3c2.3.2 4 1.7 4.5 4.2"/></svg>`,
     messages: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
     help: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5h.01"/></svg>`,
     setup: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
@@ -3652,7 +3665,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.33";
+const APP_VERSION = "2026.11.08.34";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -3679,6 +3692,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.28", items:[{text:"Columns you add to your sheet show in New item, the item details and Edit details."}]},
   {v:"2026.11.08.29", items:[{text:"Your tabs: every tab you add gets its own page to add, edit and delete rows.", show:"tabs"}]},
   {v:"2026.11.08.31", items:[{text:"Choose how you hear about new versions (Settings › About this app), and this What's new screen."}]},
+  {v:"2026.11.08.34", items:[{text:"Tidier layout: widgets are more compact on phones, tablets and computers, nothing gets cut off, and Chat has its own icon."}]},
   {v:"2026.11.08.33", items:[{text:"Ask Claude on Home: tell it what to do in your own words, with screenshots. You see every change before it's saved."}]}
 ];
 function whatsNewPanel(from){
