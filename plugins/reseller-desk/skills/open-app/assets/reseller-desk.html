@@ -454,7 +454,8 @@ const DEFAULTS = {
   carbootDays:[6,0], returnsWorking:false, noPhotosLine:true, titleWords:"", postage:"Royal Mail Tracked 48",
   descExtra:"", cardNote:"", messages:null, photosOn:true, ebayOn:false, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, layout:null, layoutV:2, updatedAt:0
 };
-const SHOW_DEF = {sold:true, messages:true, expense:true};
+const SHOW_DEF = {sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, sale:true};
+const SHOW_LIST = [["sold","Sold"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["sale","Log a sale"]];
 const INSTALL_TXT = `Please publish this file as an app for me, exactly as it is, with the abilities listed in the note at the top of the file. Then open it.`;
 const TEMPLATE_COPY ="https://docs.google.com/spreadsheets/d/18RVXVX2SyyFz1lcnPtnFfsP09C49bMDqZK8WXeUPIdE/copy";
 function migrate(o){
@@ -1428,13 +1429,13 @@ function moreWidgets(icons){
   const w = {};
   if (S.show.expense) w.expense = t("expense", "Expenses", S.carboot ? "Tape, boxes, travel and carboot fees, with charts." : "Tape, boxes, travel and entry fees, with charts.");
   if (S.show.messages) w.messages = t("messages", "Messages", "Ready-made replies for buyers.");
-  w.chat = t("chat", "Chat", "Talk to everyone who uses Reseller Desk.");
-  w.miles = t("miles", "Miles", "Log business trips and claim them.");
-  w.own = t("own", "Make your own", "No feature for it? Describe it and Claude does it.");
-  w.sheet = t("sheet", "Your spreadsheet", "Add columns and tabs, keep it in step.");
+  if (S.show.chat !== false) w.chat = t("chat", "Chat", "Talk to everyone who uses Reseller Desk.");
+  if (S.show.miles !== false) w.miles = t("miles", "Miles", "Log business trips and claim them.");
+  if (S.show.own !== false) w.own = t("own", "Make your own", "No feature for it? Describe it and Claude does it.");
+  if (S.show.sheet !== false) w.sheet = t("sheet", "Your spreadsheet", "Add columns and tabs, keep it in step.");
   w.help = t("help", "Help", "Ask how to do anything, or what went wrong.");
   w.setup = t("setup", "Settings", "Trackers, boxes, sections and updates.", true);
-  w.sale = t("sale", "Log a sale", "Mark an item sold and make the card.");
+  if (S.show.sale !== false) w.sale = t("sale", "Log a sale", "Mark an item sold and make the card.");
   return w;
 }
 function moreGo(g){
@@ -2996,12 +2997,10 @@ function viewSettings(){
     </section>
     <section class="setsec"><div class="setsec-h"><b>The app</b><span>What shows and where you open it.</span></div>
     <details class="grp"><summary><span>Menu<span class="gh">Hide sections you don't use</span></span></summary><div class="stack">
-    <p class="muted" style="margin:0;font-size:15px">Hide the ones you don't use. Home, New and Stock always show.</p>
-    <label class="ck"><input type="checkbox" id="shSold" ${S.show.sold?"checked":""}> Sold</label>
-    <label class="ck"><input type="checkbox" id="shMsg" ${S.show.messages?"checked":""}> Messages</label>
-    <label class="ck"><input type="checkbox" id="shExp" ${S.show.expense?"checked":""}> Expenses</label>
+    <p class="muted" style="margin:0;font-size:15px">Untick the ones you don't use. Home, New, Stock, Help and Settings always show.</p>
+    ${SHOW_LIST.map(([k, n]) => `<label class="ck"><input type="checkbox" data-sh="${k}" ${S.show[k]!==false?"checked":""}> ${n}</label>`).join("")}
     <p class="muted" style="margin:6px 0 0;font-size:14.5px">To move, resize, add or remove widgets on Home, Stock, Sold, Expenses or More, press and hold one, or tap <b>Edit widgets</b> under them.</p>
-    <button class="btn ghost wide" id="layAll" ${Object.keys(S.layout||{}).length?"":"disabled"}>Put every page's widgets back to standard</button>
+    <button class="btn ghost wide" id="layAll">Put every page's widgets back to standard</button>
     
     </div></details>
     <details class="grp"><summary><span>Home screen shortcut<span class="gh">Open it with one tap</span></span></summary><div class="stack">
@@ -3082,7 +3081,10 @@ function viewSettings(){
   drawSync(); drawTrackers();
   const plRedraw = () => { $("#plWrap").innerHTML = placesEditor(); bindPlacesEditor(plRedraw); }; bindPlacesEditor(plRedraw);
   const collect = () => { S.username = $("#uName").value.trim(); S.postage = $("#post").value.trim(); S.boxes = $("#boxes").value; if ($("#skuOn")) S.skuOn = $("#skuOn").checked; S.sells = $("#sells").value;
-    S.show = {sold:$("#shSold").checked, messages:$("#shMsg").checked, expense:$("#shExp").checked};
+    const was = {...S.show}; const sh = {...SHOW_DEF}; document.querySelectorAll("[data-sh]").forEach(i => { sh[i.dataset.sh] = i.checked; }); S.show = sh;
+    /* something switched back on: put its tile back on the More page, even if that page has its own layout */
+    const back = Object.keys(sh).filter(k => sh[k] && was[k] === false && k !== "sold");
+    if (back.length && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L)) back.forEach(id => { if (!L.some(x => x.id===id)) L.push({id, size:"s"}); }); });
     const cats = $("#cats").value.split("\n").map(x=>x.trim()).filter(Boolean); if (cats.length) S.cats = cats;
     S.noPhotosLine = $("#noPh").checked; S.photosOn = $("#phOn").checked; if ($("#ebOn")) S.ebayOn = $("#ebOn").checked; S.returnsWorking = $("#retW").checked; S.titleWords = $("#tw").value.trim();
     document.querySelectorAll("[data-lbl]").forEach(i => { const t = S.trackers.find(x=>x.id===i.dataset.lbl); if (t) t.label = i.value.trim(); }); };
@@ -3107,7 +3109,7 @@ function viewSettings(){
   };
   let autoT = 0;
   $("#view").addEventListener("change", e => { if (!e.target.closest("details.grp") || e.target.id==="tLink" || e.target.id==="installTxt" || e.target.closest("[data-def]") || CUR !== "setup" || !$("#uName")) return; collect(); clearTimeout(autoT); autoT = setTimeout(() => { save(); header(); drawNav(); toast("Saved"); }, 300); });
-  $("#layAll").onclick = e => { const b = e.currentTarget; if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = "Tap again to reset every page"; return; } S.layout = {}; save(); toast("Every page is back to standard"); b.disabled = true; b.textContent = "Done"; };
+  $("#layAll").onclick = e => { const b = e.currentTarget; if (!Object.keys(S.layout||{}).length){ toast("Every page is already standard"); return; } if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = "Tap again to reset every page"; return; } S.layout = {}; save(); toast("Every page is back to standard"); b.disabled = true; b.textContent = "Done"; };
   $("#saveSet") && ($("#saveSet").onclick = () => { collect(); save(); header(); drawTrackers(); drawNav(); $("#sMsg2").innerHTML = `<div class="note ok">Saved${SREF?" to your account":""}.</div>`; toast("Settings saved"); });
   $("#newTracker").onclick = newTrackerPanel;
   $("#connect").onclick = async () => {
@@ -3468,7 +3470,7 @@ async function draftFromItem(r, btn){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.25";
+const APP_VERSION = "2026.11.08.26";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
