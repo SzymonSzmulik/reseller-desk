@@ -699,7 +699,7 @@ async function extraCols(t, force){
   const out = []; h.forEach((n, i) => { n = String(n ?? "").trim(); if (n && !used.has(i) && !EXTRA_SKIP.test(n)) out.push({col:i, name:n}); });
   return (EXTRA[t.id] = out);
 }
-const xKey = n => String(n).trim().toLowerCase();
+const xKey = n => { const k = String(n).trim().toLowerCase(); return /^(postage service|postage|courier|delivery service)$/.test(k) ? "sent with" : k; };
 /* a column can have CHOICES (then it's a dropdown everywhere it shows, with "Other" to type something else) and says WHERE it shows */
 const COL_WHERE = [["new","New item"],["sold","Mark as sold"],["edit","Edit details"]];
 const colDef = n => (S.colDefs && S.colDefs[xKey(n)]) || {};
@@ -718,6 +718,9 @@ const colShows0 = (n, where) => (Array.isArray(colDef(n).show) ? colDef(n).show 
 const parseOpts = v => [...new Set(String(v||"").split(/[,\n]/).map(x => x.trim()).filter(Boolean))].slice(0, 40);
 const whereChips = (id, sel) => `<div class="chips" data-multi id="${id}">${COL_WHERE.map(([k,l]) => `<button type="button" class="chip" data-v="${k}" aria-pressed="${sel.includes(k)}">${l}</button>`).join("")}</div>`;
 const readWhere = id => [...document.querySelectorAll(`#${id} button`)].filter(b => b.getAttribute("aria-pressed")==="true").map(b => b.dataset.v);
+document.addEventListener("click", async e => { const b = e.target && e.target.closest && e.target.closest("#addRepair"); if (!b) return; const t = S.trackers.find(x => x.id === S.active); if (!t) return; b.disabled = true;
+  try{ const hd = ((await getVals(t.id, "Sales!A1:ZZ1"))[0] || []).map(x => String(x||"").trim().toLowerCase()); if (hd.some(x => /repair/.test(x))){ toast("Your Sales tab already has a Repair column"); } else { await addColumn(t, "Repair", false); S.colDefs = {...(S.colDefs||{}), repair:{...((S.colDefs||{}).repair||{}), type:"money"}}; delete EXTRA[t.id]; save(); SALES = null; toast("Repair column added"); } }catch(err){ toast("Couldn't add it: " + ((err && err.message) || "try again")); }
+  b.disabled = false; });
 document.addEventListener("change", e => { if (e.target && e.target.id === "repOff"){ S.repairOff = {...(S.repairOff||{}), [S.active]: e.target.checked}; save(); SALES = null; toast("Saved"); } });
 document.addEventListener("pointerdown", () => { window.__tapped = true; }, {once:true, capture:true});
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("#themeSeg button"); if (!b) return; S.theme = b.dataset.th === "auto" ? undefined : b.dataset.th; if (S.theme === undefined) delete S.theme; applyTheme(); save(); document.querySelectorAll("#themeSeg button").forEach(x => x.setAttribute("aria-pressed", x === b)); });
@@ -1062,41 +1065,41 @@ function bindPlaceAsk(name, onDone){
     syncPlaces(S); save(); toast(`${n} added to your places`); onDone(n); };
   $("#plSkip").onclick = () => onDone(null);
 }
+/* each paid place gets its own "<Place> entry" tab (like Carboot_entry); its entry fees go there, not in Expenses */
+const entryTabName = P => String(P.name).replace(/[\[\]*?:\/\\]/g, " ").trim().slice(0, 80) + " entry";
+const ENTRY_HEAD = ["Date", "Place", "Entry fee"];
+async function entryRows(t, P){ const name = entryTabName(P), a = await sheetIds(t.id); if (!(name in a.tabs)) return null; return (await getVals(t.id, `'${name}'!A1:C400`)) || []; }
+const hasEntry = (v, d) => (v || []).some((x,k) => k > 0 && parseUK(x[0]) && +parseUK(x[0]) === +d);
+async function logPlaceEntry(t, P, d, amt){
+  const name = entryTabName(P); let v = await entryRows(t, P);
+  if (!v){ await addTab(t, name, ENTRY_HEAD); v = [ENTRY_HEAD]; }
+  const sid = await tabId(t.id, name); let last = 0, at = -1;
+  v.forEach((x,k) => { if (String(x[0] ?? "").trim()) last = k; if (k > 0 && parseUK(x[0]) && +parseUK(x[0]) === +d) at = k; });
+  await batch(t.id, rowRequests(sid, at >= 0 ? at : last + 1, {0:{date:serial(d)}, 1:P.name, 2:amt}));
+}
 /* automatic version: the place has "Add it automatically" and a usual fee, so it's added without asking (once per place per day) */
 async function autoPlaceFee(targets, d, P){
   const box = $("#bfAsk2"); if (!box || !d || !P) return;
-  const reason = `Entry fee: ${P.name}`, amt = num(P.feeAmt), cats = (S.cats && S.cats.length) ? S.cats : CATS;
-  const cat = P.cat && cats.includes(P.cat) ? P.cat : (cats.find(c => /travel/i.test(c)) || cats[0]), added = [], had = [];
-  try{ for (const t of targets){ if (!eTab(t)) continue; const v = await expV(t);
-      if (v.some((x,k) => k > 0 && String(x[2] || "").trim().toLowerCase() === reason.toLowerCase() && parseUK(x[0]) && +parseUK(x[0]) === +d)){ had.push(tName(t)); continue; }
-      const sid = await expTabId(t); const have = [...new Set(v.slice(1).map(x => String(x[3] || "").trim()).filter(Boolean))];
-      let last = 0; v.forEach((x,k) => { if (String(x[0] ?? "").trim() || String(x[1] ?? "").trim()) last = k; });
-      await batch(t.id, rowRequests(sid, last+1, mapECells(t, {0:{date:serial(d)}, 1:amt, 2:reason, 3:catMatch(cat, have)}))); added.push(tName(t)); }
-    box.innerHTML = added.length ? `<div class="note ok" style="margin-top:10px">Entry fee for ${esc(P.name)} on ${DAYS[d.getDay()]} ${fmtD(d)} added automatically: ${gbp(amt)} (${esc(added.join(", "))}). Wrong amount? Change it in Expenses, or update the usual fee in Settings › Buying.</div>` : "";
-  }catch(e){ box.innerHTML = `<div class="note err" style="margin-top:10px">The item is saved, but the entry fee wasn't added: ${esc(mcpMsg(e))} Add it in Expenses.</div>`; }
+  const amt = num(P.feeAmt), added = [];
+  try{ for (const t of targets){ if (!layoutOk(t)) continue; const v = await entryRows(t, P); if (hasEntry(v, d)) continue; await logPlaceEntry(t, P, d, amt); added.push(tName(t)); }
+    box.innerHTML = added.length ? `<div class="note ok" style="margin-top:10px">Entry fee for ${esc(P.name)} on ${DAYS[d.getDay()]} ${fmtD(d)} added automatically: ${gbp(amt)} (in the "${esc(entryTabName(P))}" tab). Wrong amount? Change it there, or update the usual fee in Settings › Buying.</div>` : "";
+  }catch(e){ box.innerHTML = `<div class="note err" style="margin-top:10px">The item is saved, but the entry fee wasn't added: ${esc(mcpMsg(e))}</div>`; }
 }
 /* after saving an item: ask what they paid to get in, once per place per day */
 async function askPlaceFee(targets, d, P){
   const box = $("#bfAsk2"); if (!box || !d || !P) return;
-  const reason = `Entry fee: ${P.name}`, ts = [];
-  for (const t of targets){ try{ if (!eTab(t)) continue; const v = await expV(t);
-    if (v.some((x,k) => k > 0 && String(x[2] || "").trim().toLowerCase() === reason.toLowerCase() && parseUK(x[0]) && +parseUK(x[0]) === +d)) continue; ts.push({t, v}); }catch{} }
+  const ts = [];
+  for (const t of targets){ try{ if (!layoutOk(t)) continue; const v = await entryRows(t, P); if (hasEntry(v, d)) continue; ts.push(t); }catch{} }
   if (!ts.length || !$("#bfAsk2")) return;
-  const cats = (S.cats && S.cats.length) ? S.cats : CATS; let cat = P.cat && cats.includes(P.cat) ? P.cat : (cats.find(c => /travel/i.test(c)) || cats[0]);
   box.innerHTML = `<div class="card stack" style="margin-top:10px;border-left:3px solid var(--hl)">
-    <div><b>Did you pay to get into ${esc(P.name)} on ${DAYS[d.getDay()]} ${fmtD(d)}?</b><div class="muted" style="font-size:14.5px">Asked once per visit. It's saved as an expense.</div></div>
+    <div><b>Did you pay to get into ${esc(P.name)} on ${DAYS[d.getDay()]} ${fmtD(d)}?</b><div class="muted" style="font-size:14.5px">Asked once per visit. It's saved in the "${esc(entryTabName(P))}" tab of your sheet.</div></div>
     <div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" min="0" id="pfAmt" placeholder="0.00"></div>
-    <div><div class="lab">Expense type</div><div class="chips" id="pfCat">${cats.map(c => `<button class="chip" data-v="${esc(c)}" aria-pressed="${c===cat}">${esc(c)}</button>`).join("")}</div></div>
     <div id="pfMsg"></div><div class="row"><button class="btn small" id="pfSave">Save fee</button><button class="btn small ghost" id="pfNo">Didn't pay</button><button class="btn small ghost" id="pfStop">Stop asking for ${esc(P.name)}</button></div></div>`;
-  pick("#pfCat", v => cat = v);
   $("#pfNo").onclick = () => { box.innerHTML = ""; };
   $("#pfStop").onclick = () => { const p = placeOf(P.name); if (p){ p.fee = false; syncPlaces(S); save(); } box.innerHTML = `<div class="note info" style="margin-top:10px">Won't ask about ${esc(P.name)} again. Turn it back on in Settings › Buying.</div>`; };
   $("#pfSave").onclick = async () => { const amt = $("#pfAmt").value; if (amt === "" || num(amt) < 0){ $("#pfMsg").innerHTML = `<div class="note warn">Type what you paid, e.g. 2.00.</div>`; return; }
     const btn = $("#pfSave"); busy(btn, true, "Saving…");
-    try{ for (const {t, v} of ts){ const sid = await expTabId(t); const have = [...new Set(v.slice(1).map(x => String(x[3] || "").trim()).filter(Boolean))];
-        let last = 0; v.forEach((x,k) => { if (String(x[0] ?? "").trim() || String(x[1] ?? "").trim()) last = k; });
-        await batch(t.id, rowRequests(sid, last+1, mapECells(t, {0:{date:serial(d)}, 1:num(amt), 2:reason, 3:catMatch(cat, have)}))); }
-      const p = placeOf(P.name); if (p){ p.cat = cat; syncPlaces(S); save(); }
+    try{ for (const t of ts) await logPlaceEntry(t, P, d, num(amt));
       box.innerHTML = `<div class="note ok" style="margin-top:10px">Entry fee for ${esc(P.name)} on ${fmtD(d)} saved as ${gbp(num(amt))}.</div>`;
     }catch(e){ busy(btn, false); $("#pfMsg").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } };
 }
@@ -1128,7 +1131,7 @@ function viewSheetSet(){
     ${card("cond", "Condition", "Working, faulty, new, used… for each item.", `<p class="muted" style="margin:0;font-size:14.5px">Filled in from Working, Faulty or Untested when you add an item. Change it on any item.</p>`, "Condition column")}
     ${card("notes", "Notes", "What's wrong with it and what comes with it.", `<p class="muted" style="margin:0;font-size:14.5px">Filled in from the faults and what's included when you add an item.</p>`, "Notes column")}
     ${card("sent", "Couriers", "Which courier each sale went with.", `${listEd("courEd", couriers(), "Add a courier, e.g. Evri", "Courier")}`, "Sent with column")}
-    ${card("repairs", "Repair costs", "Take what you spent fixing an item off its profit.", `<label class="ck"><input type="checkbox" id="repOff" ${S.repairOff && S.repairOff[S.active] ? "checked" : ""}> My sheet's Profit already takes repairs off (don't take them off again in the app)</label><p class="muted" style="margin:0;font-size:14.5px">Any column with "repair" in its name is taken off profit in the app. Add one under Your columns.</p>`, "Repair column")}
+    ${card("repairs", "Repair costs", "Take what you spent fixing an item off its profit.", `<label class="ck"><input type="checkbox" id="repOff" ${S.repairOff && S.repairOff[S.active] ? "checked" : ""}> My sheet's Profit already takes repairs off (don't take them off again in the app)</label><p class="muted" style="margin:0;font-size:14.5px">Any column with "repair" in its name is taken off profit in the app. No Repair column yet? Add one here.</p><button class="btn ghost wide" id="addRepair">Add a Repair column to my Sales tab</button>`, "Repair column")}
     ${card("expense", "Expenses", "Tape, boxes, petrol and other costs.", `<div class="lab">Expense types <small>Same wording as your sheet's Category column.</small></div>${listEd("catEd", S.cats, "Add a type, e.g. Packaging", "Expense type")}`, "Expenses tab")}
     ${card("miles", "Miles", "Business trips, claimed as travel.", `<button class="btn small ghost" id="ssMiles" style="align-self:flex-start">Open Miles</button>`, "Mileage tab")}
     ${card("photos", "Photos in Google Drive", "Keep each item's photos and listing. Uses your Drive storage.", "")}
@@ -2164,7 +2167,9 @@ function cfgSummary(){
 const EXTRAS = [["insights","What sells","Which kinds of item sell best"],["boxes","Boxes page","See what's in each box"],["messages","Buyer messages","Ready-made replies"],["chat","Chat","Talk to other resellers"],["own","Make your own","Ask Claude for anything else"],["sheet","Your spreadsheet","Add columns and tabs"],["tabs","Your tabs","Pages for tabs you added"]].filter(([k]) => !(SHEET_HIDDEN && k === "sheet"));
 const sheetOff = (c = cfgPack()) => ({miles: c.showMiles === false, boots: !c.carboot, sku: c.skuOn === false, soldOn: list(c.sells).length < 2, cond: (c.feat||{}).cond === false, notes: (c.feat||{}).notes === false, sent: (c.feat||{}).sent === false, exp: c.showExp === false});
 const couriersOf = c => { const l = list(c.couriers); return l.length ? l : couriers(); };
-const sheetSig = (c = cfgPack()) => JSON.stringify([(c.places||[]).map(p => p.name), c.cats || [], sheetOff(c), couriersOf(c)]);
+const sellsOf = c => { const l = list(c.sells); return l.length ? l : ["eBay"]; };
+const colOptSig = () => Object.entries(S.colDefs||{}).filter(([k,d]) => d && Array.isArray(d.options) && d.options.length).map(([k,d]) => [k, d.options]);
+const sheetSig = (c = cfgPack()) => JSON.stringify([(c.places||[]).map(p => p.name), c.cats || [], sheetOff(c), couriersOf(c), sellsOf(c), colOptSig()]);
 let SYNCING = false;
 async function sheetSync(force){
   if (SYNCING || !mcp) return []; SYNCING = true; const out = [];
@@ -2184,8 +2189,15 @@ async function sheetSync(force){
         /* anything switched off in the app is hidden in the sheet (never deleted, so formulas and data stay); switched back on, it comes back */
         { const off = sheetOff(C), a = await sheetIds(t.id); idCache[t.id] = a;
           for (const [tab, hide] of [["Mileage", off.miles], ["Carboot_entry", off.boots], ["Expenses", off.exp]]) if (a.tabs[tab] !== undefined) reqs.push({updateSheetProperties:{properties:{sheetId:a.tabs[tab], hidden:hide}, fields:"hidden"}});
+          for (const p of (C.places||[])){ if (!p.name || !p.fee || isBoot(p.name)) continue; const nm = entryTabName(p); if (a.tabs[nm] !== undefined) continue; const sid2 = 20000 + (reqs.length + 1) * 7 + nm.length;
+            reqs.push({addSheet:{properties:{sheetId:sid2, title:nm, gridProperties:{rowCount:1000, columnCount:6, frozenRowCount:1}}}}, {updateCells:{start:{sheetId:sid2, rowIndex:0, columnIndex:0}, rows:[{values:ENTRY_HEAD.map(x => ({userEnteredValue:{stringValue:x}, userEnteredFormat:{textFormat:{bold:true}}}))}], fields:"userEnteredValue,userEnteredFormat.textFormat.bold"}}); delete idCache[t.id]; }
+          if (a.tabs["Places"] !== undefined && names.length){ const pn = names.slice(0, 20); reqs.push({updateCells:{start:{sheetId:a.tabs["Places"], rowIndex:1, columnIndex:0}, fields:"userEnteredValue", rows:Array.from({length:20}, (_, i) => ({values:[pn[i] ? {userEnteredValue:{stringValue:pn[i]}} : {}]}))}}); }
           if (a.tabs["Sales"] !== undefined){ const hd = ((await getVals(t.id, "Sales!A1:ZZ1"))[0] || []).map(x => String(x||"").trim().toLowerCase());
             for (const [name, hide] of [["sku", off.sku], ["sold on", off.soldOn], ["condition", off.cond], ["notes", off.notes], ["sent with", off.sent]]){ const c = hd.indexOf(name); if (c >= 0) reqs.push({updateDimensionProperties:{range:{sheetId:a.tabs["Sales"], dimension:"COLUMNS", startIndex:c, endIndex:c+1}, properties:{hiddenByUser:hide}, fields:"hiddenByUser"}}); }
+            { const dv = (ci, vals) => reqs.push({setDataValidation:{range:{sheetId:a.tabs["Sales"], startRowIndex:1, endRowIndex:997, startColumnIndex:ci, endColumnIndex:ci+1}, rule:{condition:{type:"ONE_OF_LIST", values:vals.map(v => ({userEnteredValue:String(v)}))}, strict:false, showCustomUi:true}}});
+              const so = hd.indexOf("sold on"); if (so >= 0) dv(so, sellsOf(C));
+              hd.forEach((x, ci) => { if (/^(postage service|courier|delivery service)$/.test(x)) dv(ci, couriersOf(C)); });
+              for (const [k, d] of colOptSig()){ const ci = hd.findIndex(x => xKey(x) === k); if (ci >= 0 && ci > 15 || (ci >= 0 && !["sku","sold on","condition","notes","sent with","bought from"].includes(k) && ci > 10)) dv(ci, d); } }
             const sw = hd.indexOf("sent with"); if (sw >= 0) reqs.push({setDataValidation:{range:{sheetId:a.tabs["Sales"], startRowIndex:1, endRowIndex:997, startColumnIndex:sw, endColumnIndex:sw+1}, rule:{condition:{type:"ONE_OF_LIST", values:couriersOf(C).map(v => ({userEnteredValue:v}))}, strict:false, showCustomUi:true}}}); } }
         if (reqs.length) await batch(t.id, reqs);
         S.sheetSig[t.id] = sig; out.push(`${tName(t)}: up to date`);
@@ -3300,7 +3312,7 @@ function renderListing(){
       if (ADD.saved && S.photosOn){ saveListing({sku:ADD.sku, item:nl.title, status:"Listed"}, nl, true).then(() => { const m = $("#lcMsg"); if (m) m.insertAdjacentHTML("beforeend", `<div class="note info" style="margin-top:6px">The saved listing is updated too. The title in your tracker isn't changed: use Edit details for that.</div>`); }).catch(() => {}); } });
   /* columns they added themselves: one box each, filled into every tracker that has a column with that name */
   (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
-    const h = $("#fExtra"); if (h && seen.size) h.innerHTML = `<div class="lab">Your own columns <small>Optional. Saved into the matching columns of your sheet.</small></div>${extraInputs([...seen.values()], ADD.extra || {}, "new")}`;
+    const h = $("#fExtra"); if (h) h.innerHTML = "";
     if (h) h.oninput = () => { ADD.extra = readExtra(h); };
     const pre = {condition: condFromStatus(ADD.status), notes: itemNotes(ADD.fields)};
     if (h){ let any = false; h.querySelectorAll("[data-xc]").forEach(inp => { const v = pre[xKey(inp.dataset.xc)]; if (!v || inp.value) return; inp.value = v; any = true;
@@ -4083,10 +4095,6 @@ function viewSettings(){
     
     </div></details>
     <details class="grp"><summary><span>Extras in the app<span class="gh">${EXTRAS.filter(([k]) => S.show[k] !== false).length} of ${EXTRAS.length} on</span></span></summary><div class="stack" id="exList" style="gap:0">${EXTRAS.map(([k, n, d]) => `<label class="ft"><span><b>${esc(n)}</b><small>${esc(d)}</small></span><input type="checkbox" class="sw" data-ex="${k}" ${S.show[k]!==false?"checked":""} aria-label="${esc(n)}"></label>`).join("")}</div></details>
-    <details class="grp"><summary><span>Sold on column<span class="gh">Save where each item sold</span></span></summary><div class="stack">
-    <div class="stack" style="gap:10px"><p class="muted" style="margin:0;font-size:15px">Adds a "Sold on" column to the end of your Sales tab, so the app can save where each item sold and show your profit by site. Nothing else in the sheet changes.</p>
-      ${targetChips("via", [S.active], "Add to")}<div id="viaMsg"></div><button class="btn ghost wide" id="addVia">Add a Sold on column</button></div>
-    </div></details>
     </section>`}
     <section class="setsec"><div class="setsec-h"><b>Look</b><span>Light or dark.</span></div>
     <div class="card stack" style="gap:10px"><div class="seg" id="themeSeg" role="group" aria-label="Light or dark">${[["auto","Match my phone"],["light","Light"],["dark","Dark"]].map(([k,l]) => `<button type="button" data-th="${k}" aria-pressed="${(S.theme === "light" || S.theme === "dark" ? S.theme : "auto") === k}">${l}</button>`).join("")}</div></div></section>
@@ -4200,7 +4208,7 @@ function viewSettings(){
     if ($("#noPh")) S.noPhotosLine = $("#noPh").checked; if ($("#phOn")) S.photosOn = $("#phOn").checked; if ($("#retW")) S.returnsWorking = $("#retW").checked;
     document.querySelectorAll("[data-lbl]").forEach(i => { const t = S.trackers.find(x=>x.id===i.dataset.lbl); if (t) t.label = i.value.trim(); }); };
   bindTargets("via");
-  $("#addVia").onclick = async () => {
+  if ($("#addVia")) $("#addVia").onclick = async () => {
     const btn = $("#addVia"), m = $("#viaMsg"); const targets = readTargets("via", [S.active]);
     if (!targets.length){ m.innerHTML = `<div class="note warn">Pick at least one tracker.</div>`; return; }
     busy(btn, true, "Adding…"); const done = [];
@@ -4623,7 +4631,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.09.72";
+const APP_VERSION = "2026.11.09.80";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4640,6 +4648,14 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.09.80", items:[{text:"Places that charge to get in (other than carboots) now get their own entry tab in your sheet, like Carboot_entry. Their entry fees are saved there instead of Expenses."}]},
+  {v:"2026.11.09.79", items:[{text:"A Postage Service column in your sheet gets your couriers as its dropdown."}]},
+  {v:"2026.11.09.78", items:[{text:"Places you add in the app now also appear in the Places tab of your sheet, with their totals."}]},
+  {v:"2026.11.09.77", items:[{text:"Repair costs: a button adds a Repair column to your Sales tab, and the app then takes it off profit."}]},
+  {v:"2026.11.09.76", items:[{text:"The dropdowns in your sheet now follow the app: Sold on uses your selling sites, and your own columns with choices get those choices too."}]},
+  {v:"2026.11.09.75", items:[{text:"A Postage Service (or Courier) column in your sheet now works like Sent with: pick it when you mark an item sold and it goes on the thank-you card."}]},
+  {v:"2026.11.09.74", items:[{text:"New item: the Your own columns box is gone from listing. Those columns stay in your sheet and in Sold."}]},
+  {v:"2026.11.09.73", items:[{text:"Settings: the Sold on column card is gone. Add that column from Your spreadsheet instead."}]},
   {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]},
   {v:"2026.11.09.53", items:[{text:"Your spreadsheet: every column or tab you add can be switched to Read-only. The app then only shows it and never writes to it (tick Read-only when you add it, or edit it any time under Your columns and in Your tabs).", show:"sheet"}]},
   {v:"2026.11.09.54", items:[{text:"Your spreadsheet: the Your columns list is hidden for now. Columns you add still work, and you can mark a new one Read-only when you add it."}]},
@@ -4741,7 +4757,7 @@ const TRACKER_CHECKS = [
 TRACKER_CHECKS.push({id:"notescol", name:'"Notes" column', why:"saves what's wrong with an item and what comes with it, so it's all in one place in your sheet",
   check: (t, h) => feat("notes") && layoutOk(t) && !h.some(x => /^notes?$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Notes", false); delete EXTRA[t.id]; toast("Notes column added"); }});
 TRACKER_CHECKS.push({id:"sentcol", name:'"Sent with" column', why:"saves the postage service each item went with (Royal Mail, Evri…) when you mark it sold",
-  check: (t, h) => feat("sent") && layoutOk(t) && !h.some(x => /^sent with$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Sent with", false); delete EXTRA[t.id]; toast("Sent with column added"); }});
+  check: (t, h) => feat("sent") && layoutOk(t) && !h.some(x => /^(sent with|postage service|courier)$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Sent with", false); delete EXTRA[t.id]; toast("Sent with column added"); }});
 /* writes each existing item's condition into the sheet's Condition column. Only empty cells, only on your own template-style trackers. */
 async function fillConditions(t){
   if (!layoutOk(t)) return 0;
