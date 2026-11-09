@@ -208,6 +208,7 @@ nav.tabs button.fab em{font-style:normal;color:var(--muted)}
 nav.tabs button.fab[aria-current="page"]::after{display:none}
 nav.tabs button.pin .pw{display:none}
 nav.tabs button.pin .pl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+@media (max-width:640px){.lead{font-size:15px;line-height:1.4;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} .btn.small{min-height:44px;padding:8px 14px} .chip{min-height:44px;padding:9px 14px} label.ck{min-height:44px;align-items:center} .card{padding:14px} h1{font-size:30px;margin-bottom:8px} .note{font-size:14.5px} nav.tabs button{font-size:12px;min-height:62px} nav.tabs button svg{width:24px;height:24px} summary{min-height:52px}}
 nav.tabs .zl,nav.tabs .zr{display:contents}
 @media (max-width:999px){nav.tabs .in{align-items:end;container-type:inline-size} nav.tabs .zl,nav.tabs .zr{display:grid;grid-auto-flow:column;grid-auto-columns:min(96px,calc((100cqw - 76px) / (2 * var(--m,3))));align-items:end} nav.tabs .zl{justify-content:end} nav.tabs .zr{justify-content:start} nav.tabs .in.noadd .zl{grid-auto-columns:minmax(0,1fr);justify-content:stretch} nav.tabs button{justify-content:flex-end} nav.tabs button .pl,nav.tabs button span:not(.pw){max-width:100%}}
 
@@ -1931,6 +1932,7 @@ function colPanel(name, after){
   $("#cdClose").onclick = closePanel;
   $("#cdSave").onclick = () => { S.colDefs[xKey(name)] = {options:parseOpts($("#cdOpts").value), show:readWhere("cdShow")}; save(); closePanel(); toast("Saved"); if (after) after(); };
 }
+const layoutOk0 = () => S.trackers.some(layoutOk);
 function viewSheet(){
   const own = S.trackers.filter(t => !handsOff(t)), ids = own.filter(t => !shp(t)).map(t => t.id);
   /* only trackers whose layout can change are offered; the others are named so it's clear they're left alone */
@@ -1938,8 +1940,11 @@ function viewSheet(){
   const pickTo = key => !can.length ? `<div class="note info">None of your trackers can be changed here: ${esc(left.map(tName).join(", "))} ${left.length===1?"is":"are"} hands-off or use your own layout.</div>`
     : (can.length === 1 ? `<p class="muted" style="margin:0;font-size:14.5px">Adds to <b>${esc(tName(can[0]))}</b>.` : `<div><div class="lab">Add to</div><div class="chips" id="tg-${key}">${can.map(t => `<button class="chip" data-v="${esc(t.id)}" aria-pressed="${ids.includes(t.id)}">${esc(tName(t))}</button>`).join("")}</div></div><p class="muted" style="margin:0;font-size:14.5px">`)
       + (can.length && left.length ? ` ${esc(left.map(tName).join(", "))} ${left.length===1?"is":"are"} left alone (hands-off).` : "") + (can.length ? "</p>" : "");
-  $("#view").innerHTML = `<h1>Your spreadsheet</h1><p class="lead">Your sheet keeps up with how you work. Change where you buy or your expense types in Settings and its dropdowns follow. Need something else tracked? Add it here, or just tell Claude in chat.</p>
-  <div class="stack">
+  $("#view").innerHTML = `<h1>Your spreadsheet</h1><p class="lead">Want to track something new? Just say what.</p>
+  <div class="card stack" id="askAdd"><label class="f">What do you want to add?<input type="text" id="askWhat" maxlength="120" placeholder="e.g. carrier used, where I stored it, repair cost" autocomplete="off"></label>
+    <div id="askMsg"></div><button class="btn wide" id="askGo" ${layoutOk0() ? "" : "disabled"}>Add it</button>
+    <p class="muted" style="margin:0;font-size:13.5px">Claude works out the column, the choices and where it shows. You check it, then tap Add column.</p></div>
+  <details class="grp" id="shMore"><summary><span>More options<span class="gh">Trackers, columns, tabs</span></span></summary><div class="stack">
     <div class="card stack" style="gap:8px"><b>Your trackers</b>${S.trackers.map(t => `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(tName(t))}</b><div class="muted" style="font-size:14px">${handsOff(t) ? "Hands-off: new rows only, its layout is never changed" : shp(t) ? "Your own layout: new rows only" : "Kept in step with your settings"}</div></div>${shp(t) ? "" : `<button class="btn small ghost" data-ho="${esc(t.id)}">${handsOff(t) ? "Allow changes" : "Make hands-off"}</button>`}</div>`).join("")}
       <div id="shSyncMsg"></div><button class="btn small ghost" id="shSync">Update dropdowns now</button></div>
     <div class="card stack"><b>Add a column</b><p class="muted" style="margin:0;font-size:14.5px">Goes on the Sales tab after your last column. Nothing you've typed moves.</p>
@@ -1950,8 +1955,28 @@ function viewSheet(){
     <div class="card stack"><b>Add a tab</b><label class="f">Tab name<input type="text" id="shTab" maxlength="40" placeholder="e.g. Repairs"></label>
       <label class="f">Column headings <small>Separate with commas.</small><input type="text" id="shHeads" placeholder="e.g. Date, Item, Part, Cost"></label>${pickTo("sht")}<div id="shTabMsg"></div><button class="btn wide" id="shTabGo" ${can.length?"":"disabled"}>Add tab</button><button class="btn wide ghost" id="shTabsOpen">Open Your tabs</button></div>
     <div class="card stack"><b>Mileage</b><p class="muted" style="margin:0;font-size:14.5px">Log business trips and claim them as an expense.</p><button class="btn wide ghost" id="shMiles">Open Miles</button></div>
-  </div>`;
+  </div></details>`;
   bindTargets("shc"); bindTargets("sht");
+  $("#askGo").onclick = async () => { const b = $("#askGo"), m = $("#askMsg"), what = $("#askWhat").value.trim();
+    if (!what){ m.innerHTML = `<div class="note warn">Type what you want to add.</div>`; return; }
+    await ready; if (!sample){ m.innerHTML = `<div class="note err">Claude isn't available here. Open this app on claude.ai.</div>`; return; }
+    busy(b, true, "Working it out…");
+    try{
+      const have = [...new Set(S.trackers.flatMap(t => (EXTRA[t.id] || []).map(c => c.name)))];
+      const o = await sample.json(`A reseller wants to track something new in their sales spreadsheet. Their request: "${what.replace(/"/g, "'")}"
+Columns the sheet already has: Item, Status, Cost, Sold Price, Shipping, Fees, Profit, Date Bought, Date Sold, Days to Sell, SKU, Bought from, Condition, Notes, Sent with, Sold on${have.length ? ", " + have.join(", ") : ""}.
+Reply with only JSON: {"kind":"column" or "tab","name":"short Title Case heading, 1-3 words","choices":[up to 8 sensible dropdown choices, or [] if it is free text, a number or a date],"show":["new" if known when buying/listing,"sold" if known when it sells,"edit"],"heads":[column headings, only if kind is tab],"note":"one short sentence saying what you set up"}.
+Use kind "tab" only for a separate list that isn't about one item (e.g. repairs log). If it already exists in the columns above, set "name" to that column and choices [].`, {modelTier:"default", cache:false});
+      const col = o.kind !== "tab";
+      const det = $("#shMore"); if (det) det.open = true;
+      if (col){ $("#shCol").value = String(o.name||"").slice(0,40); $("#shColOpts").value = (Array.isArray(o.choices) ? o.choices : []).join(", ");
+        const want = (Array.isArray(o.show) && o.show.length ? o.show : ["new","edit"]); document.querySelectorAll("#shColShow button").forEach(x => x.setAttribute("aria-pressed", want.includes(x.dataset.v))); }
+      else { $("#shTab").value = String(o.name||"").slice(0,40); $("#shHeads").value = (Array.isArray(o.heads) ? o.heads : []).join(", "); }
+      m.innerHTML = `<div class="note ok"><b>${esc(o.name||"")}</b>: ${esc(o.note||"")} Check it below, change anything you like, then tap ${col ? "Add column" : "Add tab"}.</div>`;
+      setTimeout(() => ($(col ? "#shColGo" : "#shTabGo") || b).scrollIntoView({behavior:"smooth", block:"center"}), 150);
+    }catch(e){ m.innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; }
+    busy(b, false); };
+  $("#askWhat").onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); $("#askGo").click(); } };
   const loadCols = async () => { const seen = new Map(); for (const t of S.trackers){ try{ for (const c of await extraCols(t)) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
     const h = $("#shCols"); if (!h) return;
     h.innerHTML = seen.size ? [...seen.values()].map(c => { const o = colOpts(c.name), wh = COL_WHERE.filter(([k]) => colShows(c.name, k)).map(x => x[1]).join(", ") || "Nowhere";
@@ -1964,7 +1989,7 @@ function viewSheet(){
   $("#shColGo").onclick = async () => { const b = $("#shColGo"), m = $("#shColMsg"), name = $("#shCol").value.trim(); const ts = readTargets("shc", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a column name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
-    for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); delete EXTRA[t.id]; done.push(`${tName(t)}: column ${colL(c)}. It now shows in New item and Edit details`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
+    for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); delete EXTRA[t.id]; done.push(`${tName(t)}: column ${colL(c)}. It now shows in ${(readWhere("shColShow").map(k => (COL_WHERE.find(x => x[0] === k) || [])[1]).filter(Boolean).join(", ")) || "no forms yet"}`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
     if (done.some(x => /column [A-Z]+\.|already has it/.test(x))){ S.colDefs[xKey(name)] = {options:parseOpts($("#shColOpts").value), show:readWhere("shColShow")}; save(); }
     busy(b, false); SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; loadCols(); };
   $("#shTabGo").onclick = async () => { const b = $("#shTabGo"), m = $("#shTabMsg"), name = $("#shTab").value.trim().replace(/[\[\]*?:\/\\']/g, ""), heads = list($("#shHeads").value).slice(0, 26); const ts = readTargets("sht", ids).filter(layoutOk);
