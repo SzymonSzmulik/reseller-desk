@@ -478,7 +478,7 @@ const DEFAULT_MSGS = [
 const DEFAULTS = {
   v:2, trackers:[], active:"", username:"", boxes:"", skuOn:true, sources:"", sells:"eBay",
   carbootDays:[6,0], returnsWorking:false, noPhotosLine:true, titleWords:"", postage:"Royal Mail Tracked 48",
-  descExtra:"", cardNote:"", messages:null, photosOn:true, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, colDefs:{}, layout:null, layoutV:2, updatedAt:0
+  descExtra:"", cardNote:"", messages:null, photosOn:true, photoRoot:"", boxFolders:null, skillAt:0, dlLink:"", chatAsked:false, cats:null, carboot:true, askFee:true, places:null, show:null, colDefs:{}, tabRO:{}, layout:null, layoutV:2, updatedAt:0
 };
 /* extras are off until switched on in Settings › Menu; Sold, Expenses and Log a sale stay on. People who already had the app keep what they had (see migrate), except Boxes. */
 const SHOW_DEF = {boxes:false, insights:false, sold:true, messages:false, expense:true, chat:false, miles:false, own:false, sheet:false, tabs:false, sale:true};
@@ -500,7 +500,7 @@ function migrate(o){
   if (!Array.isArray(s.custom)) s.custom = [];
   if (!Array.isArray(s.messages)) s.messages = DEFAULT_MSGS.map(m => ({...m}));
   if (!Array.isArray(s.cats) || !s.cats.length) s.cats = CATS.slice();
-  { const had = s.trackers.length > 0 && !o.showV9; s.show = {...(had ? SHOW_OLD : SHOW_DEF), ...(s.show||{})}; if (had) s.show.boxes = false; s.showV9 = true; } if (!s.colDefs || typeof s.colDefs !== "object" || Array.isArray(s.colDefs)) s.colDefs = {}; s.carboot = s.carboot !== false; s.askFee = s.askFee !== false; migratePlaces(s); if (!s.layout || typeof s.layout!=="object" || Array.isArray(s.layout) || s.layoutV !== 2){ s.layout = {}; s.layoutV = 2; }
+  { const had = s.trackers.length > 0 && !o.showV9; s.show = {...(had ? SHOW_OLD : SHOW_DEF), ...(s.show||{})}; if (had) s.show.boxes = false; s.showV9 = true; } if (!s.colDefs || typeof s.colDefs !== "object" || Array.isArray(s.colDefs)) s.colDefs = {}; if (!s.tabRO || typeof s.tabRO !== "object" || Array.isArray(s.tabRO)) s.tabRO = {}; s.carboot = s.carboot !== false; s.askFee = s.askFee !== false; migratePlaces(s); if (!s.layout || typeof s.layout!=="object" || Array.isArray(s.layout) || s.layoutV !== 2){ s.layout = {}; s.layoutV = 2; }
   if (!s.trackers.some(t => t.id===s.active)) s.active = s.trackers[0]?.id || "";
   return s;
 }
@@ -696,12 +696,15 @@ const xKey = n => String(n).trim().toLowerCase();
 /* a column can have CHOICES (then it's a dropdown everywhere it shows, with "Other" to type something else) and says WHERE it shows */
 const COL_WHERE = [["new","New item"],["sold","Mark as sold"],["edit","Edit details"]];
 const colDef = n => (S.colDefs && S.colDefs[xKey(n)]) || {};
+/* READ-ONLY: a column or tab added in Your spreadsheet can be switched to read-only. The app then only shows it: nothing is written to it. */
+const colRO = n => !!colDef(n).ro;
+const tabRO = n => !!((S.tabRO || {})[xKey(n)]);
 const colOpts = n => Array.isArray(colDef(n).options) && colDef(n).options.length ? colDef(n).options : (xKey(n) === "condition" ? COND.filter(c => c !== "Not stated") : xKey(n) === "sent with" ? couriers() : []);
 const condFromStatus = st => ({"Tested working":"Working", "Faulty":"Faulty / for parts", "Untested":"Untested"})[st] || "";
 const BUILTIN_SHOW = {"sent with":["sold","edit"], condition:["new","edit"], notes:["new","edit"]};
 const itemNotes = f => { f = f || {}; return [f.faults ? `Faults: ${f.faults}` : "", f.incl ? `Includes: ${f.incl}` : ""].filter(Boolean).join(". "); };
 const FEAT_COL = {condition:"cond", notes:"notes", "sent with":"sent"};
-const colShows = (n, where) => (FEAT_COL[xKey(n)] && !feat(FEAT_COL[xKey(n)])) ? false : colShows0(n, where);
+const colShows = (n, where) => (colRO(n) && where !== "edit") ? false : (FEAT_COL[xKey(n)] && !feat(FEAT_COL[xKey(n)])) ? false : colShows0(n, where);
 const colShows0 = (n, where) => (Array.isArray(colDef(n).show) ? colDef(n).show : (BUILTIN_SHOW[xKey(n)] || ["new","edit"])).includes(where);
 const parseOpts = v => [...new Set(String(v||"").split(/[,\n]/).map(x => x.trim()).filter(Boolean))].slice(0, 40);
 const whereChips = (id, sel) => `<div class="chips" data-multi id="${id}">${COL_WHERE.map(([k,l]) => `<button type="button" class="chip" data-v="${k}" aria-pressed="${sel.includes(k)}">${l}</button>`).join("")}</div>`;
@@ -711,6 +714,7 @@ document.addEventListener("change", e => { const sel = e.target.closest && e.tar
   if (sel.value === "__other"){ t.hidden = false; t.focus(); } else { t.value = sel.value; t.hidden = true; t.dispatchEvent(new Event("input", {bubbles:true})); } });
 const extraInputs = (cols, vals={}, where) => { if (where) cols = cols.filter(c => colShows(c.name, where));
   return cols.length ? `<div class="grid2">${cols.map(c => { const v = String(vals[xKey(c.name)] ?? ""), o = colOpts(c.name);
+    if (colRO(c.name)) return `<label class="f">${esc(c.name)} <small>Read-only</small><input type="text" readonly data-ro value="${esc(v)}"></label>`;
     if (!o.length) return `<label class="f">${esc(c.name)}<input type="text" data-xc="${esc(c.name)}" value="${esc(v)}"></label>`;
     const known = v === "" || o.includes(v);
     return `<label class="f">${esc(c.name)}<select data-xs><option value="">-</option>${o.map(x => `<option ${x===v?"selected":""}>${esc(x)}</option>`).join("")}<option value="__other" ${known?"":"selected"}>Other (type it)…</option></select><input type="text" data-xc="${esc(c.name)}" value="${esc(v)}" placeholder="Type it" ${known?"hidden":""}></label>`; }).join("")}</div>` : ""; };
@@ -2087,10 +2091,11 @@ function colPanel(name, after){
   openPanel(`<h2 style="margin-top:0">${esc(name)}</h2><div class="stack">
     <label class="f">Choices <small>One per line or separated by commas. With choices you pick from a dropdown (or choose Other to type something). With none, you just type it.</small><textarea id="cdOpts" style="min-height:110px" placeholder="e.g. Royal Mail, Evri, DPD">${esc(colOpts(name).join("\n"))}</textarea></label>
     <div><div class="lab">Show it in</div>${whereChips("cdShow", sel)}</div>
+    <label class="ck" style="align-items:flex-start"><input type="checkbox" id="cdRo" ${d.ro ? "checked" : ""}><span>Read-only<br><small class="muted" style="font-weight:400">The app only shows this column. It never writes to it, and it can only be looked at in Edit details.</small></span></label>
     <p class="muted" style="margin:0;font-size:14.5px">This changes the app only. Your spreadsheet isn't touched.</p>
     <button class="btn wide" id="cdSave">Save</button><button class="btn wide ghost" id="cdClose">Cancel</button></div>`);
   $("#cdClose").onclick = closePanel;
-  $("#cdSave").onclick = () => { S.colDefs[xKey(name)] = {options:parseOpts($("#cdOpts").value), show:readWhere("cdShow")}; save(); closePanel(); toast("Saved"); if (after) after(); };
+  $("#cdSave").onclick = () => { S.colDefs[xKey(name)] = {options:parseOpts($("#cdOpts").value), show:readWhere("cdShow"), ro:$("#cdRo").checked}; save(); closePanel(); toast("Saved"); if (after) after(); };
 }
 const layoutOk0 = () => S.trackers.some(layoutOk);
 function viewSheet(){
@@ -2110,7 +2115,7 @@ function viewSheet(){
     <div class="card stack"><b>Add a column</b><p class="muted" style="margin:0;font-size:14.5px">Goes on the Sales tab after your last column. Nothing you've typed moves.</p>
       <label class="f">Column name<input type="text" id="shCol" maxlength="40" placeholder="e.g. Postage service"></label>
       <label class="f">Choices <small>Optional. Separate with commas, e.g. Royal Mail, Evri, DPD. Leave empty to just type it each time.</small><input type="text" id="shColOpts" placeholder="e.g. Royal Mail, Evri, DPD"></label>
-      <div><div class="lab">Show it in</div>${whereChips("shColShow", ["new","edit"])}</div>${pickTo("shc")}<div id="shColMsg"></div><button class="btn wide" id="shColGo" ${can.length?"":"disabled"}>Add column</button><p class="muted" style="margin:0;font-size:13.5px">Claude fills it in chat too. You can change the choices and where it shows any time, under Your columns.</p></div>
+      <div><div class="lab">Show it in</div>${whereChips("shColShow", ["new","edit"])}</div><label class="ck"><input type="checkbox" id="shColRo"> Read-only (the app only shows it, never writes to it)</label>${pickTo("shc")}<div id="shColMsg"></div><button class="btn wide" id="shColGo" ${can.length?"":"disabled"}>Add column</button><p class="muted" style="margin:0;font-size:13.5px">Claude fills it in chat too. You can change the choices and where it shows any time, under Your columns.</p></div>
     <div class="card stack"><b>Your columns</b><p class="muted" style="margin:0;font-size:14.5px">Change a column's choices, or where it shows.</p><div id="shCols" class="stack" style="gap:10px"><span class="muted">Loading…</span></div></div>
     <div class="card stack"><b>Add a tab</b><label class="f">Tab name<input type="text" id="shTab" maxlength="40" placeholder="e.g. Repairs"></label>
       <label class="f">Column headings <small>Separate with commas.</small><input type="text" id="shHeads" placeholder="e.g. Date, Item, Part, Cost"></label>${pickTo("sht")}<div id="shTabMsg"></div><button class="btn wide" id="shTabGo" ${can.length?"":"disabled"}>Add tab</button><button class="btn wide ghost" id="shTabsOpen">Open Your tabs</button></div>
@@ -2140,7 +2145,7 @@ Use kind "tab" only for a separate list that isn't about one item (e.g. repairs 
   const loadCols = async () => { const seen = new Map(); for (const t of S.trackers){ try{ for (const c of await extraCols(t)) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
     const h = $("#shCols"); if (!h) return;
     h.innerHTML = seen.size ? [...seen.values()].map(c => { const o = colOpts(c.name), wh = COL_WHERE.filter(([k]) => colShows(c.name, k)).map(x => x[1]).join(", ") || "Nowhere";
-      return `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(c.name)}</b><div class="muted" style="font-size:14px">${o.length ? esc(o.slice(0,4).join(", ")) + (o.length>4 ? "…" : "") : "Type it each time"} · ${esc(wh)}</div></div><button class="btn small ghost" data-cd="${esc(c.name)}">Edit</button></div>`; }).join("") : `<p class="muted" style="margin:0">You haven't added any columns yet.</p>`;
+      return `<div class="row" style="justify-content:space-between;gap:10px"><div style="min-width:0"><b>${esc(c.name)}</b><div class="muted" style="font-size:14px">${o.length ? esc(o.slice(0,4).join(", ")) + (o.length>4 ? "…" : "") : "Type it each time"} · ${esc(wh)}${colRO(c.name) ? " · Read-only" : ""}</div></div><button class="btn small ghost" data-cd="${esc(c.name)}">Edit</button></div>`; }).join("") : `<p class="muted" style="margin:0">You haven't added any columns yet.</p>`;
     h.querySelectorAll("[data-cd]").forEach(b => b.onclick = () => colPanel(b.dataset.cd, loadCols)); };
   loadCols();
   $("#shMiles").onclick = () => go("miles"); $("#shTabsOpen").onclick = () => go("tabs");
@@ -2150,7 +2155,7 @@ Use kind "tab" only for a separate list that isn't about one item (e.g. repairs 
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a column name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
     busy(b, true, "Adding…"); const done = [];
     for (const t of ts){ try{ const h = (await getVals(t.id, "Sales!A1:ZZ1"))[0] || []; if (h.some(x => String(x).trim().toLowerCase() === name.toLowerCase())){ done.push(`${tName(t)}: already has it`); continue; } const c = await addColumn(t, name, false); delete EXTRA[t.id]; done.push(`${tName(t)}: column ${colL(c)}. It now shows in ${(readWhere("shColShow").map(k => (COL_WHERE.find(x => x[0] === k) || [])[1]).filter(Boolean).join(", ")) || "no forms yet"}`); }catch(e){ done.push(`${tName(t)}: ${mcpMsg(e)}`); } }
-    if (done.some(x => /column [A-Z]+\.|already has it/.test(x))){ S.colDefs[xKey(name)] = {options:parseOpts($("#shColOpts").value), show:readWhere("shColShow")}; save(); }
+    if (done.some(x => /column [A-Z]+\.|already has it/.test(x))){ S.colDefs[xKey(name)] = {options:parseOpts($("#shColOpts").value), show:readWhere("shColShow"), ro:$("#shColRo").checked}; save(); }
     busy(b, false); SALES = null; m.innerHTML = `<div class="note ok">${done.map(esc).join("<br>")}</div>`; loadCols(); };
   $("#shTabGo").onclick = async () => { const b = $("#shTabGo"), m = $("#shTabMsg"), name = $("#shTab").value.trim().replace(/[\[\]*?:\/\\']/g, ""), heads = list($("#shHeads").value).slice(0, 26); const ts = readTargets("sht", ids).filter(layoutOk);
     if (!name || !ts.length){ m.innerHTML = `<div class="note warn">${!name ? "Type a tab name." : "Pick a tracker that isn't hands-off."}</div>`; return; }
@@ -2205,20 +2210,22 @@ function utDraw(){
   if (!H.length){ $("#utBody").innerHTML = `<div class="note info">This tab has no headings in row 1 yet. Add some in the sheet (e.g. Date, Item, Cost) and they'll show here.</div>`; return; }
   const ti = Math.max(0, H.findIndex(h => h && !/date|when|time/i.test(h))); const others = H.map((h, j) => j).filter(j => j !== ti && H[j]).slice(0, 3);
   const sub = r => others.map(j => r.vals[j] ? `<span>${/date|when|time/i.test(H[j]) ? "" : esc(H[j]) + ": "}${esc(r.vals[j])}</span>` : "").join("");
-  $("#utBody").innerHTML = `<div class="stack"><button class="btn wide" id="utAdd">+ Add to ${esc(UT.tab)}</button>
+  $("#utBody").innerHTML = `<div class="stack">${tabRO(UT.tab) ? `<div class="note info">This tab is read-only. You can look at it, but nothing can be added, changed or deleted from the app.</div>` : `<button class="btn wide" id="utAdd">+ Add to ${esc(UT.tab)}</button>`}
     ${ho ? `<p class="muted" style="margin:0;font-size:14px">${esc(tName(t))} is hands-off, so you can add rows but not change old ones.</p>` : ""}
     <div class="listcard" id="utList">${UT.rows.length ? UT.rows.slice().reverse().map(r => `<button class="item" data-r="${r.row}"><div style="min-width:0;flex:1"><div class="t">${esc(r.vals[ti] || "(no " + H[ti] + ")")}</div><div class="meta">${sub(r)}</div></div></button>`).join("") : `<p class="muted">Nothing here yet.</p>`}</div>
-    <p class="muted" style="margin:0;font-size:13.5px">${UT.rows.length} row${UT.rows.length===1?"":"s"} · newest first · columns: ${esc(H.join(", "))}</p></div>`;
-  $("#utAdd").onclick = () => utPanel(null);
+    <p class="muted" style="margin:0;font-size:13.5px">${UT.rows.length} row${UT.rows.length===1?"":"s"} · newest first · columns: ${esc(H.join(", "))}</p>
+    <label class="ck" style="align-items:flex-start"><input type="checkbox" id="utRo" ${tabRO(UT.tab) ? "checked" : ""}><span>Read-only<br><small class="muted" style="font-weight:400">The app only shows this tab. Nothing in it can be added, changed or deleted from the app.</small></span></label></div>`;
+  if ($("#utAdd")) $("#utAdd").onclick = () => utPanel(null);
+  if ($("#utRo")) $("#utRo").onchange = e => { S.tabRO = S.tabRO || {}; if (e.target.checked) S.tabRO[xKey(UT.tab)] = true; else delete S.tabRO[xKey(UT.tab)]; save(); toast(e.target.checked ? `${UT.tab} is read-only` : `${UT.tab} can be changed`); utDraw(); };
   $("#utList").onclick = e => { const b = e.target.closest("[data-r]"); if (!b) return; const r = UT.rows.find(x => x.row === +b.dataset.r); if (r) utPanel(r); };
 }
 function utPanel(r){
-  const t = S.trackers.find(x => x.id === UT.t), ho = handsOff(t), H = UT.heads, ro = !!r && ho;
+  const t = S.trackers.find(x => x.id === UT.t), ho = handsOff(t), H = UT.heads, ro = (!!r && ho) || tabRO(UT.tab);
   openPanel(`<h2 style="margin-top:0">${r ? esc(r.vals.find((v, j) => v && !/date|when|time/i.test(H[j])) || UT.tab) : "Add to " + esc(UT.tab)}</h2><div class="stack">
     <div class="grid2">${H.map((h, j) => h ? `<label class="f">${esc(h)}${UT.fcols.has(j) ? ` <small>Works itself out</small>` : ""}<input type="text" data-j="${j}" value="${esc(r ? r.vals[j] : "")}" ${UT.fcols.has(j) || ro ? "readonly" : ""} ${/date/i.test(h) ? `placeholder="DD/MM/YYYY" inputmode="numeric"` : ""}></label>` : "").join("")}</div>
     <div id="utMsg"></div>
     ${ro ? "" : `<button class="btn wide" id="utSave">${r ? "Save changes" : "Add it"}</button>`}
-    ${r && !ho ? `<button class="btn wide ghost" id="utDel" style="color:var(--ret)">Delete this row</button>` : ""}
+    ${r && !ho && !tabRO(UT.tab) ? `<button class="btn wide ghost" id="utDel" style="color:var(--ret)">Delete this row</button>` : ""}
     <button class="btn wide ghost" id="utClose">${ro ? "Close" : "Cancel"}</button></div>`);
   if (!r){ const d = H.findIndex(h => /date/i.test(h)); if (d >= 0 && !UT.fcols.has(d)) $(`[data-j="${d}"]`).value = fmtD(today()); }
   $("#utClose").onclick = closePanel;
@@ -3139,7 +3146,7 @@ async function saveItem(){
     const done = [];
     for (const t of targets){
       const sid = await tabId(t.id, sTab(t)); const row = shp(t) ? await firstEmptyRow(t.id, qt(sTab(t)), colL(shp(t).s.c[0]), 1000, sHr(t)+1) : await firstEmptyRow(t.id, "Sales", "A", 997, 1);
-      const xs = {}; try{ for (const c of await extraCols(t)){ const v = colShows(c.name, "new") || !FEAT_COL[xKey(c.name)] ? (XIN[xKey(c.name)] || (xKey(c.name) === "condition" ? condFromStatus(ADD.status) : xKey(c.name) === "notes" ? itemNotes(f) : "")) : ""; if (v) xs[100 + c.col] = v; } }catch{}
+      const xs = {}; try{ for (const c of await extraCols(t)){ const v = colRO(c.name) ? "" : colShows(c.name, "new") || !FEAT_COL[xKey(c.name)] ? (XIN[xKey(c.name)] || (xKey(c.name) === "condition" ? condFromStatus(ADD.status) : xKey(c.name) === "notes" ? itemNotes(f) : "")) : ""; if (v) xs[100 + c.col] = v; } }catch{}
       await batch(t.id, rowRequests(sid, row, mapCells(t, {0:title, 1:"Listed", 2:num(f.cost), 4:0, 5:0, 7:{date:serial(d)}, ...(ADD.sku ? {10:ADD.sku} : {}), 11:ADD.from, ...xs})));
       const back = await salesRow(t, row);
       if (!back[0] || (hasField(t, 10) && ADD.sku ? back[0][10] !== ADD.sku : String(back[0][0]).trim() !== title.trim())) throw {code:"tool_error", message:`couldn't confirm row ${row+1} in ${tName(t)}`};
@@ -4442,7 +4449,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.08.52";
+const APP_VERSION = "2026.11.09.53";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4484,7 +4491,8 @@ const WHATS_NEW = [
   {v:"2026.11.08.49", items:[{text:"Settings › You: a username for every site you sell on. Thank-you cards and buyer messages use the right one for where the item sold."}]},
   {v:"2026.11.08.50", items:[{text:"What sells: fixed items landing in the wrong group. Every answer from Claude is now checked against its item, and old mixed-up groups are cleared and sorted again."}]},
   {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Every sheet has its own Spreadsheet settings page (Settings › Spreadsheet settings): each part is a card with an on/off switch, and turning one on shows all its options. Sync any sheets together in groups, as many groups as you like. New: a usual label cost and a selling fee % that fill in when you mark sold. More breathing room on phones. Settings is tidier: a new “What do you use?” list at the top switches whole parts on or off (SKUs, carboots, condition, notes, couriers, expenses, miles, photos). Off means gone from the app and hidden in your sheet. Add your couriers in Settings › Selling. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
-  {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]}
+  {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]},
+  {v:"2026.11.09.53", items:[{text:"Your spreadsheet: every column or tab you add can be switched to Read-only. The app then only shows it and never writes to it (tick Read-only when you add it, or edit it any time under Your columns and in Your tabs).", show:"sheet"}]}
 ];
 function whatsNewPanel(from){
   const vs = WHATS_NEW.filter(w => from ? w.v > from && w.v <= APP_VERSION : true).slice(from ? 0 : -4);

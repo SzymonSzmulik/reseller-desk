@@ -11,9 +11,13 @@ Their spreadsheet should always match what they tell you. When they say somethin
 | "add a column for X" / "track the weight" | none | add the column header after the last used column on that tab; never inside the formula columns. The app then shows it in New item and Edit details, and the chat skills fill it when the info is given |
 | "add a tab for X" | none | add the tab with the headers they want in row 1. The app gives it its own page in More › Your tabs automatically |
 | "use boxes WOR 3" / "no SKUs" | `boxes` / `skuOn` | none |
+| "make the X column read-only" / "stop writing to X" | set `colDefs["x" in lower case].ro` to `true` (keep its other keys; `false` turns it off) | none |
+| "make the X tab read-only" | set `tabRO["x" in lower case]` to `true` (delete the key to turn it off) | none |
 | "log miles" / "I want to claim mileage" | none | the Mileage tab, added by the app (More › Miles) |
 
 Dropdowns are "show a warning", never "reject", so old rows with other words stay valid.
+
+Read-only columns and tabs (the app's Read-only box in Your spreadsheet) are never written by any chat skill: not new rows, not edits, not deletes. They can still be read.
 
 ## How
 1. Read the settings with ArtifactData (`get` the settings doc) and keep its version.

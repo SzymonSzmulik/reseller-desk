@@ -15,7 +15,7 @@ Item title, SKU / custom label, sold date, item price, and only the costs the se
 1. Read the sales tab.
 2. Find the row: SKU first, then the title on a Listed row (ignore case and small differences). Several matches: the oldest unsold one, and say which row. Already Sold: say so, change nothing. No match: say so and offer to add a new row.
 3. Write only: status = sold word, sold price, date sold (their date style), fees and postage if the seller paid any, sold on and sent with (the postage service, e.g. Royal Mail Tracked 48) if those columns exist, SKU only if blank.
-4. Their own columns (any other heading they added, e.g. "Buyer postcode area" or "Courier"): fill one only when the screenshot or their message clearly gives it, and never with buyer names or addresses. Never write formula columns. Read the row back; check profit and days to sell work and the date shows as a date.
+4. Their own columns (any other heading they added, e.g. "Buyer postcode area" or "Courier"): fill one only when the screenshot or their message clearly gives it, and never with buyer names or addresses. Never write formula columns, and never write a column the settings mark read-only (`colDefs[<heading in lower case>].ro: true`). Read the row back; check profit and days to sell work and the date shows as a date.
 
 ## Thank-you card or message
 Then offer, as one tappable question: a printable thank-you card (Google Doc), a message to the buyer, or neither.
