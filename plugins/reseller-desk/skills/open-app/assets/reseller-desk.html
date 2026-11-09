@@ -209,6 +209,11 @@ nav.tabs button.fab[aria-current="page"]::after{display:none}
 nav.tabs button.pin .pw{display:none}
 nav.tabs button.pin .pl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
 @media (max-width:640px){.lead{font-size:15px;line-height:1.4;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} .btn.small{min-height:44px;padding:8px 14px} .chip{min-height:44px;padding:9px 14px} label.ck{min-height:44px;align-items:center} .card{padding:14px} h1{font-size:30px;margin-bottom:8px} .note{font-size:14.5px} nav.tabs button{font-size:12px;min-height:62px} nav.tabs button svg{width:24px;height:24px} summary{min-height:52px}}
+label.ft{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid var(--line);cursor:pointer}
+label.ft:first-child{border-top:0} label.ft b{display:block;font-size:16px} label.ft small{display:block;color:var(--muted);font-size:13.5px;line-height:1.35;margin-top:2px} label.ft em{font-style:normal;color:var(--fg);opacity:.7}
+input.sw{-webkit-appearance:none;appearance:none;flex:none;width:52px;height:32px;border-radius:16px;background:var(--line);position:relative;cursor:pointer;transition:background .15s;margin:0}
+input.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+input.sw:checked{background:var(--ok,#16a34a)} input.sw:checked::after{left:23px}
 nav.tabs .zl,nav.tabs .zr{display:contents}
 @media (max-width:999px){nav.tabs .in{align-items:end;container-type:inline-size} nav.tabs .zl,nav.tabs .zr{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-auto-columns:min(96px,calc((100cqw - 76px) / (2 * var(--m,3))));align-items:end} nav.tabs .zl{justify-content:end} nav.tabs .zr{justify-content:start} nav.tabs .in.noadd .zl{grid-auto-columns:minmax(0,1fr);justify-content:stretch} nav.tabs button{justify-content:flex-end} nav.tabs button .pl,nav.tabs button span:not(.pw){max-width:100%}}
 
@@ -658,11 +663,13 @@ const xKey = n => String(n).trim().toLowerCase();
 /* a column can have CHOICES (then it's a dropdown everywhere it shows, with "Other" to type something else) and says WHERE it shows */
 const COL_WHERE = [["new","New item"],["sold","Mark as sold"],["edit","Edit details"]];
 const colDef = n => (S.colDefs && S.colDefs[xKey(n)]) || {};
-const colOpts = n => Array.isArray(colDef(n).options) && colDef(n).options.length ? colDef(n).options : (xKey(n) === "condition" ? COND.filter(c => c !== "Not stated") : []);
+const colOpts = n => Array.isArray(colDef(n).options) && colDef(n).options.length ? colDef(n).options : (xKey(n) === "condition" ? COND.filter(c => c !== "Not stated") : xKey(n) === "sent with" ? couriers() : []);
 const condFromStatus = st => ({"Tested working":"Working", "Faulty":"Faulty / for parts", "Untested":"Untested"})[st] || "";
 const BUILTIN_SHOW = {"sent with":["sold","edit"], condition:["new","edit"], notes:["new","edit"]};
 const itemNotes = f => { f = f || {}; return [f.faults ? `Faults: ${f.faults}` : "", f.incl ? `Includes: ${f.incl}` : ""].filter(Boolean).join(". "); };
-const colShows = (n, where) => (Array.isArray(colDef(n).show) ? colDef(n).show : (BUILTIN_SHOW[xKey(n)] || ["new","edit"])).includes(where);
+const FEAT_COL = {condition:"cond", notes:"notes", "sent with":"sent"};
+const colShows = (n, where) => (FEAT_COL[xKey(n)] && !feat(FEAT_COL[xKey(n)])) ? false : colShows0(n, where);
+const colShows0 = (n, where) => (Array.isArray(colDef(n).show) ? colDef(n).show : (BUILTIN_SHOW[xKey(n)] || ["new","edit"])).includes(where);
 const parseOpts = v => [...new Set(String(v||"").split(/[,\n]/).map(x => x.trim()).filter(Boolean))].slice(0, 40);
 const whereChips = (id, sel) => `<div class="chips" data-multi id="${id}">${COL_WHERE.map(([k,l]) => `<button type="button" class="chip" data-v="${k}" aria-pressed="${sel.includes(k)}">${l}</button>`).join("")}</div>`;
 const readWhere = id => [...document.querySelectorAll(`#${id} button`)].filter(b => b.getAttribute("aria-pressed")==="true").map(b => b.dataset.v);
@@ -1891,8 +1898,21 @@ async function milePanel(r){
 
 /* ---------- YOUR SPREADSHEET KEEPS UP: dropdowns follow your settings; add columns and tabs when you ask.
    Only for trackers made from the template that aren't hands-off. ---------- */
-const sheetOff = () => ({miles: S.show.miles === false, boots: !S.carboot, sku: !skuOn(), soldOn: sells().length < 2});
-const sheetSig = () => JSON.stringify([(S.places||[]).map(p => p.name), S.cats || [], sheetOff()]);
+/* "What do you use?": big on/off chunks. Off = gone from the app AND hidden in the sheet (never deleted). */
+const feat = k => (S.feat || {})[k] !== false;
+const couriers = () => { const l = list(S.couriers); return l.length ? l : ["Royal Mail", "Evri", "DPD", "Yodel", "InPost", "Parcelforce", "Collection"]; };
+const FEATS = [
+  {k:"sku", name:"SKUs and boxes", desc:"A label number for each item, and boxes to keep stock in.", sheet:"SKU column", get:() => skuOn(), set:v => { S.skuOn = v; }},
+  {k:"boots", name:"Carboots", desc:"Entry fees added on the days you buy at a carboot.", sheet:"Carboot fees tab", get:() => !!S.carboot, set:v => { S.carboot = v; }},
+  {k:"cond", name:"Condition", desc:"Working, faulty, new, used… for each item.", sheet:"Condition column", get:() => feat("cond"), set:v => { S.feat = {...(S.feat||{}), cond:v}; }},
+  {k:"notes", name:"Notes", desc:"What's wrong with it and what comes with it.", sheet:"Notes column", get:() => feat("notes"), set:v => { S.feat = {...(S.feat||{}), notes:v}; }},
+  {k:"sent", name:"Couriers", desc:"Which courier each sale went with.", sheet:"Sent with column", get:() => feat("sent"), set:v => { S.feat = {...(S.feat||{}), sent:v}; }},
+  {k:"expense", name:"Expenses", desc:"Tape, boxes, petrol and other costs.", sheet:"Expenses tab", get:() => S.show.expense !== false, set:v => { S.show = {...S.show, expense:v}; }},
+  {k:"miles", name:"Miles", desc:"Business trips, claimed as travel.", sheet:"Mileage tab", get:() => S.show.miles !== false, set:v => { S.show = {...S.show, miles:v}; }},
+  {k:"photos", name:"Photos in Google Drive", desc:"Keep each item's photos and listing. Uses your Drive storage.", sheet:"", get:() => !!S.photosOn, set:v => { S.photosOn = v; }}];
+const EXTRAS = [["insights","What sells","Which kinds of item sell best"],["boxes","Boxes page","See what's in each box"],["messages","Buyer messages","Ready-made replies"],["sale","Log a sale button","On the More page"],["chat","Chat","Talk to other resellers"],["own","Make your own","Ask Claude for anything else"],["sheet","Your spreadsheet","Add columns and tabs"],["tabs","Your tabs","Pages for tabs you added"]];
+const sheetOff = () => ({miles: S.show.miles === false, boots: !S.carboot, sku: !skuOn(), soldOn: sells().length < 2, cond: !feat("cond"), notes: !feat("notes"), sent: !feat("sent"), exp: S.show.expense === false});
+const sheetSig = () => JSON.stringify([(S.places||[]).map(p => p.name), S.cats || [], sheetOff(), couriers()]);
 let SYNCING = false;
 async function sheetSync(force){
   if (SYNCING || !mcp) return []; SYNCING = true; const out = []; const sig = sheetSig();
@@ -1910,9 +1930,10 @@ async function sheetSync(force){
           reqs.push({setDataValidation:{range:{sheetId:eid, startRowIndex:1, endRowIndex:300, startColumnIndex:3, endColumnIndex:4}, rule:{condition:{type:"ONE_OF_LIST", values:S.cats.map(v => ({userEnteredValue:v}))}, strict:false, showCustomUi:true}}}); }
         /* anything switched off in the app is hidden in the sheet (never deleted, so formulas and data stay); switched back on, it comes back */
         { const off = sheetOff(), a = await sheetIds(t.id); idCache[t.id] = a;
-          for (const [tab, hide] of [["Mileage", off.miles], ["Carboot_entry", off.boots]]) if (a.tabs[tab] !== undefined) reqs.push({updateSheetProperties:{properties:{sheetId:a.tabs[tab], hidden:hide}, fields:"hidden"}});
+          for (const [tab, hide] of [["Mileage", off.miles], ["Carboot_entry", off.boots], ["Expenses", off.exp]]) if (a.tabs[tab] !== undefined) reqs.push({updateSheetProperties:{properties:{sheetId:a.tabs[tab], hidden:hide}, fields:"hidden"}});
           if (a.tabs["Sales"] !== undefined){ const hd = ((await getVals(t.id, "Sales!A1:ZZ1"))[0] || []).map(x => String(x||"").trim().toLowerCase());
-            for (const [name, hide] of [["sku", off.sku], ["sold on", off.soldOn]]){ const c = hd.indexOf(name); if (c >= 0) reqs.push({updateDimensionProperties:{range:{sheetId:a.tabs["Sales"], dimension:"COLUMNS", startIndex:c, endIndex:c+1}, properties:{hiddenByUser:hide}, fields:"hiddenByUser"}}); } } }
+            for (const [name, hide] of [["sku", off.sku], ["sold on", off.soldOn], ["condition", off.cond], ["notes", off.notes], ["sent with", off.sent]]){ const c = hd.indexOf(name); if (c >= 0) reqs.push({updateDimensionProperties:{range:{sheetId:a.tabs["Sales"], dimension:"COLUMNS", startIndex:c, endIndex:c+1}, properties:{hiddenByUser:hide}, fields:"hiddenByUser"}}); }
+            const sw = hd.indexOf("sent with"); if (sw >= 0) reqs.push({setDataValidation:{range:{sheetId:a.tabs["Sales"], startRowIndex:1, endRowIndex:997, startColumnIndex:sw, endColumnIndex:sw+1}, rule:{condition:{type:"ONE_OF_LIST", values:couriers().map(v => ({userEnteredValue:v}))}, strict:false, showCustomUi:true}}}); } }
         if (reqs.length) await batch(t.id, reqs);
         S.sheetSig[t.id] = sig; out.push(`${tName(t)}: up to date`);
       }catch(e){ out.push(`${tName(t)}: ${mcpMsg(e)}`); }
@@ -2985,7 +3006,7 @@ async function saveItem(){
     const done = [];
     for (const t of targets){
       const sid = await tabId(t.id, sTab(t)); const row = shp(t) ? await firstEmptyRow(t.id, qt(sTab(t)), colL(shp(t).s.c[0]), 1000, sHr(t)+1) : await firstEmptyRow(t.id, "Sales", "A", 997, 1);
-      const xs = {}; try{ for (const c of await extraCols(t)){ const v = XIN[xKey(c.name)] || (xKey(c.name) === "condition" ? condFromStatus(ADD.status) : xKey(c.name) === "notes" ? itemNotes(f) : ""); if (v) xs[100 + c.col] = v; } }catch{}
+      const xs = {}; try{ for (const c of await extraCols(t)){ const v = colShows(c.name, "new") || !FEAT_COL[xKey(c.name)] ? (XIN[xKey(c.name)] || (xKey(c.name) === "condition" ? condFromStatus(ADD.status) : xKey(c.name) === "notes" ? itemNotes(f) : "")) : ""; if (v) xs[100 + c.col] = v; } }catch{}
       await batch(t.id, rowRequests(sid, row, mapCells(t, {0:title, 1:"Listed", 2:num(f.cost), 4:0, 5:0, 7:{date:serial(d)}, ...(ADD.sku ? {10:ADD.sku} : {}), 11:ADD.from, ...xs})));
       const back = await salesRow(t, row);
       if (!back[0] || (hasField(t, 10) && ADD.sku ? back[0][10] !== ADD.sku : String(back[0][0]).trim() !== title.trim())) throw {code:"tool_error", message:`couldn't confirm row ${row+1} in ${tName(t)}`};
@@ -3321,7 +3342,7 @@ async function saveSold(){
       const i = findRow(v, r, "Listed");
       if (i<0){ done.push(`${tName(t)}: not found, left alone`); continue; }
       const c = {1:"Sold", 3:num(price), 4:num($("#sShip").value), 5:num($("#sFees").value), 8:{date:serial(d)}};
-      try{ for (const xc of await extraCols(t)){ const v = XS[xKey(xc.name)] || (xKey(xc.name) === "sent with" ? (SHOT?.delivery_service || S.postage || "") : ""); if (v) c[100 + xc.col] = v; } }catch{}
+      try{ for (const xc of await extraCols(t)){ const v = XS[xKey(xc.name)] || (xKey(xc.name) === "sent with" && feat("sent") ? (SHOT?.delivery_service || S.postage || "") : ""); if (v) c[100 + xc.col] = v; } }catch{}
       const vc = await viaCol(t.id); if (vc>=0 && SOLD_VIA) c[100+vc] = SOLD_VIA; else if (vc<0 && sells().length>1) noVia.push(tName(t));
       await batch(t.id, rowRequests(sid, i, mapCells(t, c)));
       const back = await salesRow(t, i);
@@ -3722,7 +3743,11 @@ function viewSettings(){
       <p class="muted" style="margin:12px 0 0;font-size:15px">Got a backup file from another device? Tap <b>Load a backup file</b> at the bottom instead.</p></div>`:`<h1>Settings</h1><p class="lead">Changes save by themselves, to your Claude account.</p>`}
   <div class="card" id="syncLine" style="margin-bottom:14px"></div>
   <div>
-    <section class="setsec"><div class="setsec-h"><b>Your setup</b><span>Your sheets and your name.</span></div>
+    ${first ? "" : `<section class="setsec"><div class="setsec-h"><b>What do you use?</b><span>Switch off what you don't need. It disappears from the app and is hidden in your sheet. Switch it back on and it all comes back.</span></div>
+    <div class="card" id="ftList" style="padding:4px 16px">${FEATS.map(f => `<label class="ft"><span><b>${esc(f.name)}</b><small>${esc(f.desc)}${f.sheet ? ` <em>Sheet: ${esc(f.sheet)}</em>` : ""}</small></span><input type="checkbox" class="sw" data-ft="${f.k}" ${f.get()?"checked":""} aria-label="${esc(f.name)}"></label>`).join("")}</div>
+    <details class="grp"><summary><span>Extras in the app<span class="gh">${EXTRAS.filter(([k]) => S.show[k] !== false).length} of ${EXTRAS.length} on</span></span></summary><div class="stack" id="exList" style="gap:0">${EXTRAS.map(([k, n, d]) => `<label class="ft"><span><b>${esc(n)}</b><small>${esc(d)}</small></span><input type="checkbox" class="sw" data-ex="${k}" ${S.show[k]!==false?"checked":""} aria-label="${esc(n)}"></label>`).join("")}</div></details>
+    <button class="btn ghost wide" id="pinSet2" style="margin-top:4px">Choose what's in your bar</button></section>`}
+    <section class="setsec"><div class="setsec-h"><b>Your sheets</b><span>Where everything is saved, and your name.</span></div>
     <details class="grp" open><summary><span>Trackers<span class="gh">Google Sheets the app reads and writes</span></span></summary><div class="stack">
     <div class="stack" id="tList"></div>
     <label class="f">Add a tracker <small>Paste a Google Sheets link. Add as many as you like, e.g. yours, your partner's and next year's.</small><input type="url" id="tLink" placeholder="https://docs.google.com/spreadsheets/d/…"></label>
@@ -3738,22 +3763,21 @@ function viewSettings(){
     
     </div></details>
     </section>
-    <section class="setsec"><div class="setsec-h"><b>How you buy and sell</b><span>Rules the app follows for new items, sales and spending.</span></div>
-    <details class="grp"><summary><span>Boxes and SKUs<span class="gh" id="bxSum">${skuOn() ? (list(S.boxes).length ? "e.g. " + esc(list(S.boxes)[0]) + " - 4821" : "SKUs on, no boxes") : "Off"}</span></span></summary><div class="stack">
-    <label class="ck"><input type="checkbox" id="skuOn" ${skuOn()?"checked":""}> Give each new item an SKU (a label number for eBay's Custom label)</label>
+    <section class="setsec"><div class="setsec-h"><b>Buying and selling</b><span>Where you buy and sell, and how listings are written.</span></div>
+    ${skuOn() ? "" : "<!--"}<details class="grp"><summary><span>Boxes and SKUs<span class="gh" id="bxSum">${skuOn() ? (list(S.boxes).length ? "e.g. " + esc(list(S.boxes)[0]) + " - 4821" : "SKUs on, no boxes") : "Off"}</span></span></summary><div class="stack">
     <div class="lab">Your boxes <small>Optional. With boxes, SKUs look like WOR 1 - 4821 and the app asks which box. Without, SKUs are just a number. Give each box a title, the usual condition and any details if you like. All optional. Want a page showing what's in each box? Switch on Boxes under Menu below.</small></div>
     <div id="bxWrap" class="stack" style="gap:8px">${boxesEditor()}</div>
-    </div></details>
+    </div></details>${skuOn() ? "" : "-->"}
     <details class="grp"><summary><span>Buying<span class="gh">Where you buy, and which places charge to get in</span></span></summary><div class="stack"><div id="plWrap" class="stack">${placesEditor()}</div>
     </div></details>
-    <details class="grp"><summary><span>Selling<span class="gh">Where you sell</span></span></summary><div class="stack"><div class="lab">Where you sell <small>Add each site you use. With more than one, the app asks where each item sold. Empty means eBay only.</small></div>
+    <details class="grp"><summary><span>Selling<span class="gh">Sites${feat("sent") ? " and couriers" : ""}</span></span></summary><div class="stack"><div class="lab">Where you sell <small>Add each site you use. With more than one, the app asks where each item sold. Empty means eBay only.</small></div>
     ${listEd("sellEd", list(S.sells), "Add a site, e.g. Vinted", "Site")}
+    ${feat("sent") ? `<div class="lab" style="margin-top:6px">Couriers you use <small>These are the choices for "Sent with" when you mark something sold, and in your sheet.</small></div>${listEd("courEd", couriers(), "Add a courier, e.g. Evri", "Courier")}` : ""}
     <div class="card stack" style="gap:10px"><b>Sold on column</b><p class="muted" style="margin:0;font-size:15px">Adds a "Sold on" column to the end of your Sales tab, so the app can save where each item sold and show your profit by site. Nothing else in the sheet changes.</p>
       ${targetChips("via", [S.active], "Add to")}<div id="viaMsg"></div><button class="btn ghost wide" id="addVia">Add a Sold on column</button></div>
     </div></details>
-    <details class="grp"><summary><span>Listings<span class="gh">Photos, returns, title words</span></span></summary><div class="stack">
-    <label class="ck"><input type="checkbox" id="phOn" ${S.photosOn?"checked":""}> Save my item photos and listings to Google Drive</label>
-    <p class="muted" style="margin:-6px 0 0 34px;font-size:13.5px">In a "Reseller Desk Photos" folder, with a folder for each box and each item. Tap an item to see its photos. They use your Google Drive storage.</p>
+    <details class="grp"><summary><span>Listings<span class="gh">Returns and title words</span></span></summary><div class="stack">
+    
     <label class="ck"><input type="checkbox" id="noPh" ${S.noPhotosLine?"checked":""}> Say "no further photos can be provided"</label>
     <label class="ck"><input type="checkbox" id="retW" ${S.returnsWorking?"checked":""}> I accept returns on working items</label>
     <div class="lab">Words you like in titles <small>Optional, e.g. Retro, Y2K, Vintage. Separate several with commas to add them at once.</small></div>
@@ -3762,15 +3786,13 @@ function viewSettings(){
     
     
     </div></details>
-    <details class="grp"><summary><span>Expenses<span class="gh">Expense types</span></span></summary><div class="stack"><div class="lab">Expense types <small>Use the same wording as the Category column in your sheet.</small></div>
+    ${S.show.expense === false ? "" : `    <details class="grp"><summary><span>Expenses<span class="gh">Expense types</span></span></summary><div class="stack"><div class="lab">Expense types <small>Use the same wording as the Category column in your sheet.</small></div>
     ${listEd("catEd", S.cats, "Add a type, e.g. Packaging", "Expense type")}
-    </div></details>
+    </div></details>`}
     </section>
     ${isAdmin() ? `<section class="setsec"><div class="card stack" style="gap:10px;border-top:3px solid var(--rule)"><b>Admin panel</b><p class="muted" style="margin:0;font-size:14.5px">Sending updates, bug reports and the group chat switch are in your Admin panel. Only you can see it.</p><button class="btn wide" id="toAdmin">Open the Admin panel</button></div></section>` : ""}
     <section class="setsec"><div class="setsec-h"><b>The app</b><span>What shows and where you open it.</span></div>
-    <details class="grp"><summary><span>Menu<span class="gh">Hide sections you don't use</span></span></summary><div class="stack">
-    <p class="muted" style="margin:0;font-size:15px">Untick the ones you don't use. Home, New, Stock, Help and Settings always show.</p>
-    ${SHOW_LIST.map(([k, n]) => `<label class="ck"><input type="checkbox" data-sh="${k}" ${S.show[k]!==false?"checked":""}> ${n}</label>`).join("")}
+    <details class="grp"><summary><span>Bar and widgets<span class="gh">What's in your bar, and widget layouts</span></span></summary><div class="stack">
     <p class="muted" style="margin:6px 0 0;font-size:14.5px">To move, resize, add or remove widgets on Home, Stock, Sold, Expenses or More, press and hold one, or tap <b>Edit widgets</b> under them.</p>
     <button class="btn ghost wide" id="pinSet">Choose what's in your bar or sidebar</button>
     <button class="btn ghost wide" id="layAll">Put every page's widgets back to standard</button>
@@ -3825,13 +3847,13 @@ function viewSettings(){
       </div>
     </div></details>
     </section>
-    <section class="setsec"><div class="setsec-h"><b>Chat</b><span>One group chat for everyone with the app.</span></div>
+    ${S.show.chat === false ? "" : `    <section class="setsec"><div class="setsec-h"><b>Chat</b><span>One group chat for everyone with the app.</span></div>
     <details class="grp"><summary><span>Group chat<span class="gh">${S.chatJoined ? "You're in" : "Not joined"}</span></span></summary><div class="stack">
       ${S.chatJoined ? `<label class="f">Your name in the chat<input type="text" id="chNameSet" value="${esc(S.chatName||S.username||"")}" maxlength="30"></label>
       ${(S.chatHide||[]).length ? `<div class="row" style="justify-content:space-between"><span>${(S.chatHide||[]).length} ${(S.chatHide||[]).length===1?"person":"people"} hidden</span><button class="btn small ghost" id="chUnhide">Show them again</button></div>` : ""}
       <button class="btn ghost wide" id="chLeave">Leave the chat</button>` : `<p class="muted" style="margin:0;font-size:14.5px">Open More › Chat to join. Everyone with the app can read it, so don't share personal details.</p>`}
     </div></details>
-    </section>
+    </section>`}
     <section class="setsec"><div class="setsec-h"><b>Backup</b><span>Keep a copy of your setup.</span></div>
     <details class="grp"><summary><span>Backup file<span class="gh">Move your setup to another device</span></span></summary><div class="stack">
     <p class="muted" style="margin:0">Everything in one small file: trackers, settings and messages. Load it on any device to set it up in one go.</p>
@@ -3857,15 +3879,22 @@ function viewSettings(){
   drawSync(); drawTrackers();
   const plRedraw = () => { $("#plWrap").innerHTML = placesEditor(); bindPlacesEditor(plRedraw); }; bindPlacesEditor(plRedraw);
   bindBoxesEditor();
+  bindListEd("courEd", () => couriers(), a => { S.couriers = a.join(", "); }, "Add a courier, e.g. Evri", "Courier", {split:true, min:1});
+  $("#pinSet2") && ($("#pinSet2").onclick = pinPanel);
+  const ftChange = e => { const i = e.target; e.stopPropagation(); const f = FEATS.find(x => x.k === i.dataset.ft);
+    if (f){ f.set(i.checked); } else if (i.dataset.ex){ S.show = {...S.show, [i.dataset.ex]: i.checked}; if (i.checked && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L) && !L.some(x => x.id === i.dataset.ex)) L.push({id:i.dataset.ex, size:"s"}); }); }
+    save(); drawNav(); const y = scrollY; viewSettings(); scrollTo(0, y);
+    toast(f && f.sheet ? (i.checked ? `${f.name} on. Back in your sheet.` : `${f.name} off. Hidden in your sheet, nothing deleted.`) : i.checked ? "Switched on" : "Switched off"); };
+  $("#ftList") && ($("#ftList").onchange = ftChange); $("#exList") && ($("#exList").onchange = ftChange);
   bindListEd("sellEd", () => list(S.sells), a => { S.sells = a.join(", "); const b = $("#unBox"); if (b) b.innerHTML = unFields(); }, "Add a site, e.g. Vinted", "Site", {split:true});
   bindListEd("twEd", () => list(S.titleWords), a => { S.titleWords = a.join(", "); }, "Add a word", "Title word", {split:true});
   bindListEd("catEd", () => (S.cats||[]).slice(), a => { S.cats = a; }, "Add a type, e.g. Packaging", "Expense type", {min:1});
   const collect = () => { S.username = $("#uName").value.trim(); { const un = {...(S.usernames||{})}; document.querySelectorAll("#unBox [data-un]").forEach(i => { const v = i.value.trim(); if (v) un[i.dataset.un] = v; else delete un[i.dataset.un]; }); S.usernames = un; } S.postage = $("#post").value.trim(); if ($("#skuOn")) S.skuOn = $("#skuOn").checked; setTimeout(() => { const b = $("#unBox"); if (b && !b.contains(document.activeElement)){ const want = sells().filter(x => x.toLowerCase() !== "ebay").join("|"), have = [...b.querySelectorAll("[data-un]")].map(i => i.dataset.un).join("|"); if (want !== have) b.innerHTML = unFields(); } }, 0);
-    const was = {...S.show}; const sh = {...SHOW_DEF}; document.querySelectorAll("[data-sh]").forEach(i => { sh[i.dataset.sh] = i.checked; }); S.show = sh;
+    const was = {...S.show}; const sh = {...S.show}; document.querySelectorAll("[data-sh]").forEach(i => { sh[i.dataset.sh] = i.checked; }); S.show = sh;
     /* something switched back on: put its tile back on the More page, even if that page has its own layout */
     const back = Object.keys(sh).filter(k => sh[k] && was[k] === false && k !== "sold");
     if (back.length && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L)) back.forEach(id => { if (!L.some(x => x.id===id)) L.push({id, size:"s"}); }); });
-    S.noPhotosLine = $("#noPh").checked; S.photosOn = $("#phOn").checked; S.returnsWorking = $("#retW").checked;
+    S.noPhotosLine = $("#noPh").checked; if ($("#phOn")) S.photosOn = $("#phOn").checked; S.returnsWorking = $("#retW").checked;
     document.querySelectorAll("[data-lbl]").forEach(i => { const t = S.trackers.find(x=>x.id===i.dataset.lbl); if (t) t.label = i.value.trim(); }); };
   bindTargets("via");
   $("#addVia").onclick = async () => {
@@ -4331,7 +4360,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.48", items:[{text:"Tidier settings and a few fixes."}]},
   {v:"2026.11.08.49", items:[{text:"Settings › You: a username for every site you sell on. Thank-you cards and buyer messages use the right one for where the item sold."}]},
   {v:"2026.11.08.50", items:[{text:"What sells: fixed items landing in the wrong group. Every answer from Claude is now checked against its item, and old mixed-up groups are cleared and sorted again."}]},
-  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
+  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Settings is tidier: a new “What do you use?” list at the top switches whole parts on or off (SKUs, carboots, condition, notes, couriers, expenses, miles, photos). Off means gone from the app and hidden in your sheet. Add your couriers in Settings › Selling. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
   {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]}
 ];
 function whatsNewPanel(from){
@@ -4408,12 +4437,12 @@ const TRACKER_CHECKS = [
   {id:"soldon", name:'"Sold on" column', why:"shows where each item sold and your profit by site",
     need: h => sells().length > 1 && viaIndex(h) < 0, col:"Sold on", hide:false},
   {id:"condcol", name:'"Condition" column', why:"saves each item's condition (working, faulty, used…) in your sheet, and fills it in for your existing items from their titles. Only empty cells are filled",
-    check: (t, h) => layoutOk(t) && !h.some(x => /^condition$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Condition", false); delete EXTRA[t.id]; const n = await fillConditions(t); toast(n ? `Condition added, ${n} item${n===1?"":"s"} filled in` : "Condition column added"); }},
+    check: (t, h) => feat("cond") && layoutOk(t) && !h.some(x => /^condition$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Condition", false); delete EXTRA[t.id]; const n = await fillConditions(t); toast(n ? `Condition added, ${n} item${n===1?"":"s"} filled in` : "Condition column added"); }},
 ];
 TRACKER_CHECKS.push({id:"notescol", name:'"Notes" column', why:"saves what's wrong with an item and what comes with it, so it's all in one place in your sheet",
-  check: (t, h) => layoutOk(t) && !h.some(x => /^notes?$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Notes", false); delete EXTRA[t.id]; toast("Notes column added"); }});
+  check: (t, h) => feat("notes") && layoutOk(t) && !h.some(x => /^notes?$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Notes", false); delete EXTRA[t.id]; toast("Notes column added"); }});
 TRACKER_CHECKS.push({id:"sentcol", name:'"Sent with" column', why:"saves the postage service each item went with (Royal Mail, Evri…) when you mark it sold",
-  check: (t, h) => layoutOk(t) && !h.some(x => /^sent with$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Sent with", false); delete EXTRA[t.id]; toast("Sent with column added"); }});
+  check: (t, h) => feat("sent") && layoutOk(t) && !h.some(x => /^sent with$/i.test(String(x||"").trim())), apply: async t => { await addColumn(t, "Sent with", false); delete EXTRA[t.id]; toast("Sent with column added"); }});
 /* writes each existing item's condition into the sheet's Condition column. Only empty cells, only on your own template-style trackers. */
 async function fillConditions(t){
   if (!layoutOk(t)) return 0;
