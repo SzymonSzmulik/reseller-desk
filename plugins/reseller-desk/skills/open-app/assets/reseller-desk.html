@@ -208,7 +208,8 @@ nav.tabs button.fab em{font-style:normal;color:var(--muted)}
 nav.tabs button.fab[aria-current="page"]::after{display:none}
 nav.tabs button.pin .pw{display:none}
 nav.tabs button.pin .pl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
-@media (max-width:640px){.lead{font-size:15px;line-height:1.4;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} .btn.small{min-height:44px;padding:8px 14px} .chip{min-height:44px;padding:9px 14px} label.ck{min-height:44px;align-items:center} .card{padding:14px} h1{font-size:30px;margin-bottom:8px} .note{font-size:14.5px} nav.tabs button{font-size:12px;min-height:62px} nav.tabs button svg{width:24px;height:24px} summary{min-height:52px}}
+@media (max-width:420px){.grid2:has(> label.f){grid-template-columns:1fr} .grid2{gap:14px}}
+@media (max-width:640px){.chips{gap:8px} details.grp{margin-bottom:12px} .stack{gap:16px} .lead{font-size:15px;line-height:1.4;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} .btn.small{min-height:44px;padding:8px 14px} .chip{min-height:44px;padding:9px 14px} label.ck{min-height:44px;align-items:center} .card{padding:14px} h1{font-size:30px;margin-bottom:8px} .note{font-size:14.5px} nav.tabs button{font-size:12px;min-height:62px} nav.tabs button svg{width:24px;height:24px} summary{min-height:52px}}
 label.ft{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid var(--line);cursor:pointer}
 label.ft:first-child{border-top:0} label.ft b{display:block;font-size:16px} label.ft small{display:block;color:var(--muted);font-size:13.5px;line-height:1.35;margin-top:2px} label.ft em{font-style:normal;color:var(--fg);opacity:.7}
 input.sw{-webkit-appearance:none;appearance:none;flex:none;width:52px;height:32px;border-radius:16px;background:var(--line);position:relative;cursor:pointer;transition:background .15s;margin:0}
@@ -512,17 +513,32 @@ let S = migrate(loadLocal());
    condition/notes/couriers, expenses, miles, photos, listing wording) belongs to a sheet. Sheets share one set (S.globalCfg) unless
    "Same settings as my other sheets" is off for that sheet (t.ownCfg, its own t.cfg). S always holds the ACTIVE sheet's values,
    so the rest of the app just reads S. save() files them under the right sheet; switching sheet loads that sheet's set. ---------- */
-const SHEET_KEYS = ["username","usernames","postage","couriers","sells","places","carboot","askFee","carbootDays","cats","skuOn","boxes","boxInfo","feat","photosOn","returnsWorking","noPhotosLine","titleWords","descExtra","cardNote"];
+const SHEET_KEYS = ["username","usernames","postage","postCost","feePct","couriers","sells","places","carboot","askFee","carbootDays","cats","skuOn","boxes","boxInfo","feat","photosOn","returnsWorking","noPhotosLine","titleWords","descExtra","cardNote"];
 const cfgPack = () => { const o = {}; SHEET_KEYS.forEach(k => { if (S[k] !== undefined) o[k] = JSON.parse(JSON.stringify(S[k])); }); o.showExp = S.show.expense !== false; o.showMiles = S.show.miles !== false; return o; };
-const cfgApply = c => { if (!c) return; SHEET_KEYS.forEach(k => { if (k in c) S[k] = JSON.parse(JSON.stringify(c[k])); }); if ("showExp" in c) S.show = {...S.show, expense:c.showExp, miles:c.showMiles}; };
-const cfgOf = t => !t ? cfgPack() : t.id === S.active ? cfgPack() : ((t.ownCfg && t.cfg) || S.globalCfg || cfgPack());
+const cfgApply = c => { if (!c) return; SHEET_KEYS.forEach(k => { if (k in c) S[k] = JSON.parse(JSON.stringify(c[k])); else if (k in DEFAULTS) S[k] = JSON.parse(JSON.stringify(DEFAULTS[k])); else delete S[k]; }); if ("showExp" in c) S.show = {...S.show, expense:c.showExp, miles:c.showMiles};
+  if (!Array.isArray(S.cats) || !S.cats.length) S.cats = CATS.slice(); try{ migratePlaces(S); }catch{} if (!Array.isArray(S.places)) S.places = []; };
+/* sync groups: sheets in a group share one set (g.cfg); any other sheet has its own (t.cfg). */
+function cfgGroups(){
+  if (!Array.isArray(S.cfgGroups)){ S.cfgGroups = [];
+    const shared = S.trackers.filter(t => !t.ownCfg);
+    if (S.globalCfg && shared.length > 1) S.cfgGroups.push({id:"g" + Date.now(), sheets:shared.map(t => t.id), cfg:S.globalCfg});
+    else if (S.globalCfg) shared.forEach(t => { if (!t.cfg) t.cfg = JSON.parse(JSON.stringify(S.globalCfg)); }); }
+  const ids = new Set(S.trackers.map(t => t.id));
+  /* tidy IN PLACE (callers keep references to these group objects) */
+  S.cfgGroups.forEach(g => { g.sheets = g.sheets.filter(id => ids.has(id)); });
+  for (let i = S.cfgGroups.length - 1; i >= 0; i--){ const g = S.cfgGroups[i]; if (g.sheets.length > 1) continue; g.sheets.forEach(id => { const t = S.trackers.find(x => x.id === id); if (t && !t.cfg) t.cfg = g.cfg; }); S.cfgGroups.splice(i, 1); }
+  return S.cfgGroups;
+}
+const groupOf = id => cfgGroups().find(g => g.sheets.includes(id));
+const cfgOf = t => !t ? cfgPack() : t.id === S.active ? cfgPack() : ((groupOf(t.id) || {}).cfg || t.cfg || S.globalCfg || cfgPack());
+function cfgStore(id, c){ const g = groupOf(id); if (g){ g.cfg = c; return; } const t = S.trackers.find(x => x.id === id); if (t) t.cfg = c; }
 let CFG_FOR = S.active;
 function cfgFile(){
   const now = S.active, old = CFG_FOR;
-  if (old && old !== now){ const ot = S.trackers.find(t => t.id === old); if (ot){ if (ot.ownCfg) ot.cfg = cfgPack(); else S.globalCfg = cfgPack(); }
-    const nt = S.trackers.find(t => t.id === now); if (nt) cfgApply((nt.ownCfg && nt.cfg) || S.globalCfg);
-    CFG_FOR = now; if (typeof CUR !== "undefined" && CUR === "setup") setTimeout(() => { try{ viewSettings(); }catch{} }, 0); return; }
-  CFG_FOR = now; const t = S.trackers.find(x => x.id === now); if (!t) return; if (t.ownCfg) t.cfg = cfgPack(); else S.globalCfg = cfgPack();
+  if (old && old !== now){ if (S.trackers.some(t => t.id === old)) cfgStore(old, cfgPack());
+    const nt = S.trackers.find(t => t.id === now); if (nt) cfgApply((groupOf(now) || {}).cfg || nt.cfg);
+    CFG_FOR = now; if (typeof CUR !== "undefined" && (CUR === "setup" || CUR === "sheetset")) setTimeout(() => { try{ go(CUR); }catch{} }, 0); return; }
+  CFG_FOR = now; if (now) cfgStore(now, cfgPack());
 }
 let DB = null, SREF = null, SYNC = "loading", writeChain = Promise.resolve();
 function save(){
@@ -1050,6 +1066,88 @@ async function askPlaceFee(targets, d, P){
       const p = placeOf(P.name); if (p){ p.cat = cat; syncPlaces(S); save(); }
       box.innerHTML = `<div class="note ok" style="margin-top:10px">Entry fee for ${esc(P.name)} on ${fmtD(d)} saved as ${gbp(num(amt))}.</div>`;
     }catch(e){ busy(btn, false); $("#pfMsg").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; } };
+}
+/* ---------- SPREADSHEET SETTINGS: one page per sheet. Every part is a card; parts you can switch off have a switch, and when
+   off the card just says Off (and that part is hidden in the sheet). Sheets can be synced in groups. ---------- */
+function viewSheetSet(){
+  const t = activeT(); if (!t){ go("setup"); return; }
+  const g = groupOf(t.id), others = g ? g.sheets.filter(id => id !== t.id).map(id => tName(S.trackers.find(x => x.id === id))) : [];
+  const F = k => FEATS.find(f => f.k === k);
+  const card = (k, name, desc, body, sheetPart) => { const f = F(k), on = f ? f.get() : null;
+    return `<div class="card ss" data-sec="${k}" style="margin-bottom:12px;padding:14px 16px"><label class="ft" style="border:0;padding:0"><span><b style="font-size:17px">${esc(name)}</b><small>${esc(desc)}${sheetPart ? ` <em>Sheet: ${esc(sheetPart)}</em>` : ""}</small></span>${f ? `<input type="checkbox" class="sw" data-ft="${k}" ${on?"checked":""} aria-label="${esc(name)}">` : ""}</label>
+      ${on === false ? `<p class="muted" style="margin:10px 0 0;font-size:14.5px;font-weight:600">Off</p>` : body ? `<div class="stack" style="margin-top:14px;gap:12px">${body}</div>` : ""}</div>`; };
+  const money = (id, v, ph) => `<div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" min="0" id="${id}" value="${v ?? ""}" placeholder="${ph}"></div>`;
+  $("#view").innerHTML = `<h1>Spreadsheet settings</h1><p class="lead">How this sheet works. Switch off what you don't use.</p>
+    ${S.trackers.length > 1 ? `<div class="chips" id="ssPick" style="margin-bottom:12px">${S.trackers.map(x => `<button class="chip" data-v="${esc(x.id)}" aria-pressed="${x.id===t.id}">${esc(tName(x))}</button>`).join("")}</div>` : ""}
+    <div class="card stack" style="gap:8px;margin-bottom:18px;border-top:3px solid var(--hl)"><div class="eyebrow">Editing</div><b style="font-size:20px">${esc(tName(t))}</b>
+      <p class="muted" style="margin:0;font-size:14.5px">${g ? `Synced with <b>${esc(others.join(", "))}</b>: changes here change ${others.length === 1 ? "that sheet" : "those sheets"} too.` : "Its own settings. Not synced with any other sheet."}</p>
+      ${S.trackers.length > 1 ? `<button class="btn small ghost" id="ssSync" style="align-self:flex-start">Sync settings between sheets</button>` : ""}
+      <details class="grp" style="margin:0"><summary><span>See everything<span class="gh">Every setting in one list</span></span></summary><div>${cfgSummary()}</div></details></div>
+    ${card("sites", "Selling", "Where you sell, your usernames and your usual postage.", `
+      <div class="lab">Where you sell <small>With more than one, the app asks where each item sold.</small></div>${listEd("sellEd", list(S.sells), "Add a site, e.g. Vinted", "Site")}
+      <div class="stack" id="unBox">${unFields()}</div>
+      <label class="f">Postage you usually use<input type="text" id="post" value="${esc(S.postage||"")}"></label>
+      <div class="grid2"><label class="f">Usual label cost <small>Filled in when you mark sold</small>${money("postCost", S.postCost, "0.00")}</label>
+      <label class="f">Selling fees <small>% of the price, to guess fees</small><div class="money"><span>%</span><input type="number" inputmode="decimal" step="0.1" min="0" max="50" id="feePct" value="${S.feePct ?? ""}" placeholder="e.g. 13"></div></label></div>`)}
+    ${card("buying", "Buying", "Where you buy, and which places charge to get in.", `<div id="plWrap" class="stack">${placesEditor()}</div>`)}
+    ${card("sku", "SKUs and boxes", "A label number for each item, and boxes to keep stock in.", `<div class="lab">Your boxes <small>Optional. With boxes, SKUs look like WOR 1 - 4821.</small></div><div id="bxWrap" class="stack" style="gap:8px">${boxesEditor()}</div>`, "SKU column")}
+    ${card("boots", "Carboots", "Entry fees added on the days you buy at a carboot.", `<p class="muted" style="margin:0;font-size:14.5px">Saturday £2, Sunday £4, added by themselves. Different fee on a day? Tap that day in Expenses.</p>`, "Carboot fees tab")}
+    ${card("cond", "Condition", "Working, faulty, new, used… for each item.", `<p class="muted" style="margin:0;font-size:14.5px">Filled in from Working, Faulty or Untested when you add an item. Change it on any item.</p>`, "Condition column")}
+    ${card("notes", "Notes", "What's wrong with it and what comes with it.", `<p class="muted" style="margin:0;font-size:14.5px">Filled in from the faults and what's included when you add an item.</p>`, "Notes column")}
+    ${card("sent", "Couriers", "Which courier each sale went with.", `${listEd("courEd", couriers(), "Add a courier, e.g. Evri", "Courier")}`, "Sent with column")}
+    ${card("expense", "Expenses", "Tape, boxes, petrol and other costs.", `<div class="lab">Expense types <small>Same wording as your sheet's Category column.</small></div>${listEd("catEd", S.cats, "Add a type, e.g. Packaging", "Expense type")}`, "Expenses tab")}
+    ${card("miles", "Miles", "Business trips, claimed as travel.", `<button class="btn small ghost" id="ssMiles" style="align-self:flex-start">Open Miles</button>`, "Mileage tab")}
+    ${card("photos", "Photos in Google Drive", "Keep each item's photos and listing. Uses your Drive storage.", "")}
+    ${card("listing", "Listings", "How Claude writes your listings and cards.", `
+      <label class="ck"><input type="checkbox" id="noPh" ${S.noPhotosLine?"checked":""}> Say "no further photos can be provided"</label>
+      <label class="ck"><input type="checkbox" id="retW" ${S.returnsWorking?"checked":""}> I accept returns on working items</label>
+      <div class="lab">Words you like in titles</div>${listEd("twEd", list(S.titleWords), "Add a word, e.g. Retro", "Title word")}
+      <label class="f">Extra line for every description <small>Optional</small><input type="text" id="dExtra" value="${esc(S.descExtra||"")}" placeholder="e.g. Comes from a smoke-free home"></label>
+      <label class="f">Thank-you card message <small>Optional</small><input type="text" id="cNote" value="${esc(S.cardNote||"")}" placeholder="e.g. Thanks for your order!"></label>`)}
+    <button class="btn wide ghost" id="ssBack" style="margin-top:6px">Back to Settings</button>`;
+  const redraw = () => { const y = scrollY; viewSheetSet(); scrollTo(0, y); };
+  $("#ssPick") && ($("#ssPick").onclick = e => { const b = e.target.closest("[data-v]"); if (!b || b.dataset.v === S.active) return; S.active = b.dataset.v; save(); SALES = null; HOME_C = null; header(); toast(`Showing ${tName(activeT())}`); });
+  $("#ssSync") && ($("#ssSync").onclick = () => syncPanel(redraw));
+  $("#ssBack").onclick = () => go("setup"); $("#ssMiles") && ($("#ssMiles").onclick = () => go("miles"));
+  bindListEd("sellEd", () => list(S.sells), a => { S.sells = a.join(", "); const b = $("#unBox"); if (b) b.innerHTML = unFields(); }, "Add a site, e.g. Vinted", "Site", {split:true});
+  bindListEd("courEd", () => couriers(), a => { S.couriers = a.join(", "); }, "Add a courier, e.g. Evri", "Courier", {split:true, min:1});
+  bindListEd("twEd", () => list(S.titleWords), a => { S.titleWords = a.join(", "); }, "Add a word, e.g. Retro", "Title word", {split:true});
+  bindListEd("catEd", () => (S.cats||[]).slice(), a => { S.cats = a; }, "Add a type, e.g. Packaging", "Expense type", {min:1});
+  bindBoxesEditor(); const plRedraw = () => { $("#plWrap").innerHTML = placesEditor(); bindPlacesEditor(plRedraw); }; if ($("#plWrap")) bindPlacesEditor(plRedraw);
+  $("#view").onchange = e => { const i = e.target;
+    if (i.dataset && i.dataset.ft){ const f = FEATS.find(x => x.k === i.dataset.ft); if (!f) return; f.set(i.checked); save(); drawNav(); redraw();
+      toast(f.sheet ? (i.checked ? `${f.name} on. Back in your sheet.` : `${f.name} off. Hidden in your sheet, nothing deleted.`) : i.checked ? "On" : "Off"); return; }
+    if (i.closest("#sellEd,#courEd,#twEd,#catEd,#plWrap,#bxWrap,#ssPick")) return;
+    if ($("#uName")) S.username = $("#uName").value.trim();
+    const un = {...(S.usernames||{})}; document.querySelectorAll("#unBox [data-un]").forEach(x => { const v = x.value.trim(); if (v) un[x.dataset.un] = v; else delete un[x.dataset.un]; }); S.usernames = un;
+    S.postage = $("#post") ? $("#post").value.trim() : S.postage; S.postCost = $("#postCost") && $("#postCost").value !== "" ? num($("#postCost").value) : undefined; S.feePct = $("#feePct") && $("#feePct").value !== "" ? Math.min(50, Math.max(0, num($("#feePct").value))) : undefined;
+    if ($("#noPh")) S.noPhotosLine = $("#noPh").checked; if ($("#retW")) S.returnsWorking = $("#retW").checked;
+    if ($("#dExtra")) S.descExtra = $("#dExtra").value.trim(); if ($("#cNote")) S.cardNote = $("#cNote").value.trim();
+    save(); toast("Saved"); };
+}
+function syncPanel(after){
+  const gs_ = cfgGroups(), nm = id => tName(S.trackers.find(x => x.id === id));
+  openPanel(`<h2 style="margin-top:0">Sync settings</h2><p class="muted" style="margin-top:0">Sheets in a group share every setting: usernames, sites, couriers, switches, the lot. You can have more than one group.</p>
+    <div class="stack" id="sgList" style="gap:10px">${gs_.length ? gs_.map((g, i) => `<div class="card" style="padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="min-width:0"><b>Group ${i+1}</b><div class="muted" style="font-size:14px">${esc(g.sheets.map(nm).join(" + "))}</div></div><button class="btn small ghost" data-unsync="${esc(g.id)}" style="color:var(--ret)">Stop syncing</button></div>`).join("") : `<p class="muted" style="margin:0">No sheets are synced. Each has its own settings.</p>`}</div>
+    <div class="card stack" style="margin-top:14px;gap:10px"><b>+ Sync sheets together</b><div class="lab" style="margin:0">Pick 2 or more</div>
+      <div class="chips" data-multi id="sgPick">${S.trackers.map(x => `<button type="button" class="chip" data-v="${esc(x.id)}" aria-pressed="false">${esc(tName(x))}</button>`).join("")}</div>
+      <div class="lab" style="margin:0">Keep the settings from</div><div class="chips" id="sgSrc"></div><div id="sgMsg"></div>
+      <button class="btn wide" id="sgGo">Sync these</button></div>
+    <button class="btn wide ghost" id="sgClose" style="margin-top:12px">Close</button>`);
+  const picked = () => [...document.querySelectorAll("#sgPick button")].filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.dataset.v);
+  let src = "";
+  const drawSrc = () => { const p = picked(); if (!p.includes(src)) src = p.includes(S.active) ? S.active : (p[0] || ""); $("#sgSrc").innerHTML = p.map(id => `<button class="chip" data-v="${esc(id)}" aria-pressed="${id===src}">${esc(nm(id))}</button>`).join("") || `<span class="muted" style="font-size:14px">Pick sheets first</span>`; };
+  drawSrc(); $("#sgPick").addEventListener("click", () => setTimeout(drawSrc, 0));
+  $("#sgSrc").onclick = e => { const b = e.target.closest("[data-v]"); if (b){ src = b.dataset.v; drawSrc(); } };
+  $("#sgClose").onclick = closePanel;
+  $("#sgList").onclick = e => { const b = e.target.closest("[data-unsync]"); if (!b) return; const g = cfgGroups().find(x => x.id === b.dataset.unsync); if (!g) return;
+    cfgStore(S.active, cfgPack()); g.sheets.forEach(id => { const t = S.trackers.find(x => x.id === id); if (t) t.cfg = JSON.parse(JSON.stringify(g.cfg)); });
+    S.cfgGroups = cfgGroups().filter(x => x.id !== g.id); save(); closePanel(); toast("Stopped syncing. Each sheet keeps its own copy."); if (after) after(); };
+  $("#sgGo").onclick = () => { const p = picked(); if (p.length < 2){ $("#sgMsg").innerHTML = `<div class="note warn">Pick at least 2 sheets.</div>`; return; }
+    cfgStore(S.active, cfgPack()); const c = JSON.parse(JSON.stringify(cfgOf(S.trackers.find(x => x.id === src))));
+    cfgGroups().forEach(g => { g.sheets = g.sheets.filter(id => !p.includes(id)); }); cfgGroups();
+    S.cfgGroups.push({id:"g" + Date.now(), sheets:p, cfg:c}); if (p.includes(S.active)) cfgApply(c);
+    save(); drawNav(); closePanel(); toast(`Synced: ${p.map(nm).join(" + ")}`); if (after) after(); };
 }
 /* Settings › Buying: edit places */
 function placesEditor(){
@@ -2272,7 +2370,7 @@ Rules: only fill "changes" or "new_rows" if the request asks to change or add to
 }
 
 /* ---------- router ---------- */
-const TABS = ["home","add","stock","sold","more","messages","expense","setup","chat","miles","sheet","own","tabs","insights","boxes","admin"];
+const TABS = ["home","add","stock","sold","more","messages","expense","setup","chat","miles","sheet","own","tabs","insights","boxes","admin","sheetset"];
 let CUR = "home";
 function go(tab){
   if(!TABS.includes(tab) || S.show[tab]===false || (tab==="admin" && !isAdmin())) tab = "home"; if (!S.trackers.length && tab!=="setup" && tab!=="messages") tab = "setup";
@@ -2284,7 +2382,7 @@ function go(tab){
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab===navTab ? "page" : "false"));
   const V = $("#view"); V.classList.remove("enter"); void V.offsetWidth; V.classList.add("enter");
   if (location.hash !== "#"+tab) history.replaceState(null, "", "#"+tab);
-  ({home:viewHome, add:viewAdd, stock:viewStock, sold:viewSold, more:viewMore, messages:viewMessages, expense:viewExpense, setup:viewSettings, chat:viewChat, miles:viewMiles, sheet:viewSheet, own:viewOwn, tabs:viewTabs, insights:viewInsights, boxes:viewBoxes, admin:(...a) => ADMIN ? ADMIN.view(...a) : viewHome()})[tab](); window.scrollTo(0,0);
+  ({home:viewHome, add:viewAdd, stock:viewStock, sold:viewSold, more:viewMore, messages:viewMessages, expense:viewExpense, setup:viewSettings, sheetset:viewSheetSet, chat:viewChat, miles:viewMiles, sheet:viewSheet, own:viewOwn, tabs:viewTabs, insights:viewInsights, boxes:viewBoxes, admin:(...a) => ADMIN ? ADMIN.view(...a) : viewHome()})[tab](); window.scrollTo(0,0);
 }
 $("nav.tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h !== CUR) go(h); });
@@ -3322,7 +3420,7 @@ async function soldPanel(r){
         <label class="f">Sold for <small>Item price only, not postage</small><div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" id="sPrice"></div></label>
         <label class="f">Date sold<input type="text" id="sDate" inputmode="numeric" value="${fmtD(today())}"></label>
         <label class="f">eBay fees you paid <small>Ad fee, final value fee. 0 if none.</small><div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" id="sFees" value="0"></div></label>
-        <label class="f">Postage label you paid <small>0 if the buyer paid</small><div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" id="sShip" value="0"></div></label>
+        <label class="f">Postage label you paid <small>0 if the buyer paid</small><div class="money"><span>£</span><input type="number" inputmode="decimal" step="0.01" id="sShip" value="${S.postCost != null ? num(S.postCost).toFixed(2) : "0"}"></div></label>
       </div>
       ${sells().length>1?`<div><div class="lab">Where did it sell?</div><div class="chips" id="sVia">${sells().map((s,i)=>`<button class="chip" data-v="${esc(s)}" aria-pressed="${i===0}">${esc(s)}</button>`).join("")}</div></div>`:""}
       <label class="ck"><input type="checkbox" id="sCard" checked> Make the thank-you card too</label>
@@ -3334,6 +3432,8 @@ async function soldPanel(r){
       <div id="cardBox"></div>
       <button class="btn wide ghost" id="sClose">Close</button></div>`);
   bindTargets("sold"); SOLD_VIA = sells()[0]; pick("#sVia", v => SOLD_VIA = v);
+  if (S.feePct > 0 && $("#sPrice") && $("#sFees")){ let feeTouched = false; $("#sFees").addEventListener("input", () => { feeTouched = true; });
+    $("#sPrice").addEventListener("input", () => { if (!feeTouched) $("#sFees").value = (num($("#sPrice").value) * S.feePct / 100).toFixed(2); }); }
   (async () => { const seen = new Map(); for (const id of defIds()){ try{ for (const c of await extraCols(S.trackers.find(x => x.id===id))) if (!seen.has(xKey(c.name))) seen.set(xKey(c.name), c); }catch{} }
     const h = $("#sExtra"), cols = [...seen.values()].filter(c => colShows(c.name, "sold")); if (h && cols.length) h.innerHTML = `<div class="lab">Your own columns <small>Optional.</small></div>${extraInputs(cols, {}, "sold")}`;
     const sw = h && [...h.querySelectorAll("[data-xc]")].find(i => xKey(i.dataset.xc) === "sent with"); if (sw && !sw.value && S.postage){ sw.value = S.postage; const sel = sw.parentElement.querySelector("select[data-xs]"); if (sel){ sel.value = S.postage; if (sel.value !== S.postage){ sel.value = "__other"; sw.hidden = false; } else sw.hidden = true; } } })();
@@ -3787,48 +3887,9 @@ function viewSettings(){
     <button class="btn wide ${first?"":"ghost"}" id="newTracker">Make me a new empty tracker</button>
     
     </div></details></section>` : ""}
-    ${first ? "" : `<div class="card stack" id="sheetHead" style="gap:6px;margin-bottom:18px;border-top:3px solid var(--hl)">
-      <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:nowrap"><div style="min-width:0"><div class="eyebrow">Settings for this sheet</div><b style="font-size:21px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(tName(activeT()))}</b></div>${S.trackers.length > 1 ? `<button class="btn small ghost" id="shPick">Change sheet</button>` : ""}</div>
-      ${S.trackers.length > 1 ? `<label class="ft" style="border-top:1px solid var(--line)"><span><b>Same settings as my other sheets</b><small>${activeT()?.ownCfg ? "Off: this sheet has its own usernames, sites, switches and everything else." : "On: what you change here changes every sheet that shares them."}</small></span><input type="checkbox" class="sw" id="cfgShare" ${activeT()?.ownCfg ? "" : "checked"} aria-label="Same settings as my other sheets"></label>` : ""}
-      <details class="grp" style="margin:0"><summary><span>Everything for this sheet<span class="gh">Every setting in one list</span></span></summary><div>${cfgSummary()}</div></details></div>
-    <section class="setsec"><div class="setsec-h"><b>What does this sheet use?</b><span>Switch off what you don't need. It disappears from the app and is hidden in this sheet. Switch it back on and it all comes back.</span></div>
-    <div class="card" id="ftList" style="padding:4px 16px">${FEATS.map(f => `<label class="ft"><span><b>${esc(f.name)}</b><small>${esc(f.desc)}${f.sheet ? ` <em>Sheet: ${esc(f.sheet)}</em>` : ""}</small></span><input type="checkbox" class="sw" data-ft="${f.k}" ${f.get()?"checked":""} aria-label="${esc(f.name)}"></label>`).join("")}</div>
-</section>`}
-    <section class="setsec"><div class="setsec-h"><b>You</b><span>Your names on each site, and your usual postage, for this sheet.</span></div>
-
-    <details class="grp"><summary><span>You<span class="gh">Usernames and postage</span></span></summary><div class="stack">
-    <div class="stack" id="unBox">${unFields()}</div>
-    <label class="f">Postage you usually use<input type="text" id="post" value="${esc(S.postage)}"></label>
-    
-    </div></details>
-    </section>
-    <section class="setsec"><div class="setsec-h"><b>Buying and selling</b><span>Where you buy and sell, and how listings are written.</span></div>
-    ${skuOn() ? "" : "<!--"}<details class="grp"><summary><span>Boxes and SKUs<span class="gh" id="bxSum">${skuOn() ? (list(S.boxes).length ? "e.g. " + esc(list(S.boxes)[0]) + " - 4821" : "SKUs on, no boxes") : "Off"}</span></span></summary><div class="stack">
-    <div class="lab">Your boxes <small>Optional. With boxes, SKUs look like WOR 1 - 4821 and the app asks which box. Without, SKUs are just a number. Give each box a title, the usual condition and any details if you like. All optional. Want a page showing what's in each box? Switch on Boxes under Menu below.</small></div>
-    <div id="bxWrap" class="stack" style="gap:8px">${boxesEditor()}</div>
-    </div></details>${skuOn() ? "" : "-->"}
-    <details class="grp"><summary><span>Buying<span class="gh">Where you buy, and which places charge to get in</span></span></summary><div class="stack"><div id="plWrap" class="stack">${placesEditor()}</div>
-    </div></details>
-    <details class="grp"><summary><span>Selling<span class="gh">Sites${feat("sent") ? " and couriers" : ""}</span></span></summary><div class="stack"><div class="lab">Where you sell <small>Add each site you use. With more than one, the app asks where each item sold. Empty means eBay only.</small></div>
-    ${listEd("sellEd", list(S.sells), "Add a site, e.g. Vinted", "Site")}
-    ${feat("sent") ? `<div class="lab" style="margin-top:6px">Couriers you use <small>These are the choices for "Sent with" when you mark something sold, and in your sheet.</small></div>${listEd("courEd", couriers(), "Add a courier, e.g. Evri", "Courier")}` : ""}
-    <div class="card stack" style="gap:10px"><b>Sold on column</b><p class="muted" style="margin:0;font-size:15px">Adds a "Sold on" column to the end of your Sales tab, so the app can save where each item sold and show your profit by site. Nothing else in the sheet changes.</p>
-      ${targetChips("via", [S.active], "Add to")}<div id="viaMsg"></div><button class="btn ghost wide" id="addVia">Add a Sold on column</button></div>
-    </div></details>
-    <details class="grp"><summary><span>Listings<span class="gh">Returns and title words</span></span></summary><div class="stack">
-    
-    <label class="ck"><input type="checkbox" id="noPh" ${S.noPhotosLine?"checked":""}> Say "no further photos can be provided"</label>
-    <label class="ck"><input type="checkbox" id="retW" ${S.returnsWorking?"checked":""}> I accept returns on working items</label>
-    <div class="lab">Words you like in titles <small>Optional, e.g. Retro, Y2K, Vintage. Separate several with commas to add them at once.</small></div>
-    ${listEd("twEd", list(S.titleWords), "Add a word", "Title word")}
-    <p class="muted" style="margin:0;font-size:14.5px">Your own description line and thank-you card message are in Messages.</p>
-    
-    
-    </div></details>
-    ${S.show.expense === false ? "" : `    <details class="grp"><summary><span>Expenses<span class="gh">Expense types</span></span></summary><div class="stack"><div class="lab">Expense types <small>Use the same wording as the Category column in your sheet.</small></div>
-    ${listEd("catEd", S.cats, "Add a type, e.g. Packaging", "Expense type")}
-    </div></details>`}
-    </section>
+    ${first ? "" : `<div class="card stack" style="gap:10px;margin-bottom:18px;border-top:3px solid var(--hl)"><div class="eyebrow">Your spreadsheet</div><b style="font-size:20px">${esc(tName(activeT()))}</b>
+      <p class="muted" style="margin:0;font-size:14.5px">Usernames, selling sites, couriers, boxes, carboots, expenses and every other part of how this sheet works.</p>
+      <button class="btn wide" id="toSheetSet">Spreadsheet settings</button></div>`}
     ${isAdmin() ? `<section class="setsec"><div class="card stack" style="gap:10px;border-top:3px solid var(--rule)"><b>Admin panel</b><p class="muted" style="margin:0;font-size:14.5px">Sending updates, bug reports and the group chat switch are in your Admin panel. Only you can see it.</p><button class="btn wide" id="toAdmin">Open the Admin panel</button></div></section>` : ""}
     ${first ? "" : `<section class="setsec"><div class="setsec-h"><b>All your sheets</b><span>These are the same whichever sheet you're on.</span></div>
     <details class="grp" ${first?"open":""}><summary><span>Trackers<span class="gh">Google Sheets the app reads and writes</span></span></summary><div class="stack">
@@ -3842,6 +3903,10 @@ function viewSettings(){
     </div></details>
     <details class="grp"><summary><span>Extras in the app<span class="gh">${EXTRAS.filter(([k]) => S.show[k] !== false).length} of ${EXTRAS.length} on</span></span></summary><div class="stack" id="exList" style="gap:0">${EXTRAS.map(([k, n, d]) => `<label class="ft"><span><b>${esc(n)}</b><small>${esc(d)}</small></span><input type="checkbox" class="sw" data-ex="${k}" ${S.show[k]!==false?"checked":""} aria-label="${esc(n)}"></label>`).join("")}</div></details>
     <button class="btn ghost wide" id="pinSet2" style="margin-top:4px">Choose what's in your bar</button>
+    <details class="grp"><summary><span>Sold on column<span class="gh">Save where each item sold</span></span></summary><div class="stack">
+    <div class="stack" style="gap:10px"><p class="muted" style="margin:0;font-size:15px">Adds a "Sold on" column to the end of your Sales tab, so the app can save where each item sold and show your profit by site. Nothing else in the sheet changes.</p>
+      ${targetChips("via", [S.active], "Add to")}<div id="viaMsg"></div><button class="btn ghost wide" id="addVia">Add a Sold on column</button></div>
+    </div></details>
     </section>`}
     <section class="setsec"><div class="setsec-h"><b>The app</b><span>What shows and where you open it.</span></div>
     <details class="grp"><summary><span>Bar and widgets<span class="gh">What's in your bar, and widget layouts</span></span></summary><div class="stack">
@@ -3946,12 +4011,12 @@ function viewSettings(){
   bindListEd("sellEd", () => list(S.sells), a => { S.sells = a.join(", "); const b = $("#unBox"); if (b) b.innerHTML = unFields(); }, "Add a site, e.g. Vinted", "Site", {split:true});
   bindListEd("twEd", () => list(S.titleWords), a => { S.titleWords = a.join(", "); }, "Add a word", "Title word", {split:true});
   bindListEd("catEd", () => (S.cats||[]).slice(), a => { S.cats = a; }, "Add a type, e.g. Packaging", "Expense type", {min:1});
-  const collect = () => { S.username = $("#uName").value.trim(); { const un = {...(S.usernames||{})}; document.querySelectorAll("#unBox [data-un]").forEach(i => { const v = i.value.trim(); if (v) un[i.dataset.un] = v; else delete un[i.dataset.un]; }); S.usernames = un; } S.postage = $("#post").value.trim(); if ($("#skuOn")) S.skuOn = $("#skuOn").checked; setTimeout(() => { const b = $("#unBox"); if (b && !b.contains(document.activeElement)){ const want = sells().filter(x => x.toLowerCase() !== "ebay").join("|"), have = [...b.querySelectorAll("[data-un]")].map(i => i.dataset.un).join("|"); if (want !== have) b.innerHTML = unFields(); } }, 0);
+  const collect = () => { if ($("#uName")) S.username = $("#uName").value.trim(); { const un = {...(S.usernames||{})}; document.querySelectorAll("#unBox [data-un]").forEach(i => { const v = i.value.trim(); if (v) un[i.dataset.un] = v; else delete un[i.dataset.un]; }); S.usernames = un; } if ($("#post")) S.postage = $("#post").value.trim(); if ($("#skuOn")) S.skuOn = $("#skuOn").checked; setTimeout(() => { const b = $("#unBox"); if (b && !b.contains(document.activeElement)){ const want = sells().filter(x => x.toLowerCase() !== "ebay").join("|"), have = [...b.querySelectorAll("[data-un]")].map(i => i.dataset.un).join("|"); if (want !== have) b.innerHTML = unFields(); } }, 0);
     const was = {...S.show}; const sh = {...S.show}; document.querySelectorAll("[data-sh]").forEach(i => { sh[i.dataset.sh] = i.checked; }); S.show = sh;
     /* something switched back on: put its tile back on the More page, even if that page has its own layout */
     const back = Object.keys(sh).filter(k => sh[k] && was[k] === false && k !== "sold");
     if (back.length && S.layout) ["more","more@wide"].forEach(key => { const L = S.layout[key]; if (Array.isArray(L)) back.forEach(id => { if (!L.some(x => x.id===id)) L.push({id, size:"s"}); }); });
-    S.noPhotosLine = $("#noPh").checked; if ($("#phOn")) S.photosOn = $("#phOn").checked; S.returnsWorking = $("#retW").checked;
+    if ($("#noPh")) S.noPhotosLine = $("#noPh").checked; if ($("#phOn")) S.photosOn = $("#phOn").checked; if ($("#retW")) S.returnsWorking = $("#retW").checked;
     document.querySelectorAll("[data-lbl]").forEach(i => { const t = S.trackers.find(x=>x.id===i.dataset.lbl); if (t) t.label = i.value.trim(); }); };
   bindTargets("via");
   $("#addVia").onclick = async () => {
@@ -3973,9 +4038,10 @@ function viewSettings(){
     busy(btn, false);
   };
   let autoT = 0;
-  $("#view").addEventListener("change", e => { if (!e.target.closest("details.grp") || e.target.id==="tLink" || e.target.id==="installTxt" || e.target.closest("[data-def]") || CUR !== "setup" || !$("#uName")) return; collect(); clearTimeout(autoT); autoT = setTimeout(() => { save(); header(); drawNav(); toast("Saved"); }, 300); });
+  $("#view").addEventListener("change", e => { if (!e.target.closest("details.grp") || e.target.id==="tLink" || e.target.id==="installTxt" || e.target.closest("[data-def]") || CUR !== "setup") return; collect(); clearTimeout(autoT); autoT = setTimeout(() => { save(); header(); drawNav(); toast("Saved"); }, 300); });
   $("#pinSet") && ($("#pinSet").onclick = pinPanel);
   $("#toAdmin") && ($("#toAdmin").onclick = () => go("admin"));
+  $("#toSheetSet") && ($("#toSheetSet").onclick = () => go("sheetset"));
   $("#layAll").onclick = e => { const b = e.currentTarget; if (!Object.keys(S.layout||{}).length){ toast("Every page is already standard"); return; } if (b.dataset.sure !== "1"){ b.dataset.sure = "1"; b.textContent = "Tap again to reset every page"; return; } S.layout = {}; save(); toast("Every page is back to standard"); b.disabled = true; b.textContent = "Done"; };
   $("#saveSet") && ($("#saveSet").onclick = () => { collect(); save(); header(); drawTrackers(); drawNav(); $("#sMsg2").innerHTML = `<div class="note ok">Saved${SREF?" to your account":""}.</div>`; toast("Settings saved"); });
   $("#newTracker").onclick = newTrackerPanel;
@@ -4417,7 +4483,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.48", items:[{text:"Tidier settings and a few fixes."}]},
   {v:"2026.11.08.49", items:[{text:"Settings › You: a username for every site you sell on. Thank-you cards and buyer messages use the right one for where the item sold."}]},
   {v:"2026.11.08.50", items:[{text:"What sells: fixed items landing in the wrong group. Every answer from Claude is now checked against its item, and old mixed-up groups are cleared and sorted again."}]},
-  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Each sheet now has its own settings page (usernames, sites, couriers, switches, everything), with a switch to share one set across your sheets. Settings is tidier: a new “What do you use?” list at the top switches whole parts on or off (SKUs, carboots, condition, notes, couriers, expenses, miles, photos). Off means gone from the app and hidden in your sheet. Add your couriers in Settings › Selling. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
+  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Every sheet has its own Spreadsheet settings page (Settings › Spreadsheet settings): each part is a card with an on/off switch, and turning one on shows all its options. Sync any sheets together in groups, as many groups as you like. New: a usual label cost and a selling fee % that fill in when you mark sold. More breathing room on phones. Settings is tidier: a new “What do you use?” list at the top switches whole parts on or off (SKUs, carboots, condition, notes, couriers, expenses, miles, photos). Off means gone from the app and hidden in your sheet. Add your couriers in Settings › Selling. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
   {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]}
 ];
 function whatsNewPanel(from){
