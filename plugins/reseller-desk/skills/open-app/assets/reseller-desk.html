@@ -210,7 +210,7 @@ nav.tabs button.pin .pw{display:none}
 nav.tabs button.pin .pl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
 @media (max-width:640px){.lead{font-size:15px;line-height:1.4;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} .btn.small{min-height:44px;padding:8px 14px} .chip{min-height:44px;padding:9px 14px} label.ck{min-height:44px;align-items:center} .card{padding:14px} h1{font-size:30px;margin-bottom:8px} .note{font-size:14.5px} nav.tabs button{font-size:12px;min-height:62px} nav.tabs button svg{width:24px;height:24px} summary{min-height:52px}}
 nav.tabs .zl,nav.tabs .zr{display:contents}
-@media (max-width:999px){nav.tabs .in{align-items:end;container-type:inline-size} nav.tabs .zl,nav.tabs .zr{display:grid;grid-auto-flow:column;grid-auto-columns:min(96px,calc((100cqw - 76px) / (2 * var(--m,3))));align-items:end} nav.tabs .zl{justify-content:end} nav.tabs .zr{justify-content:start} nav.tabs .in.noadd .zl{grid-auto-columns:minmax(0,1fr);justify-content:stretch} nav.tabs button{justify-content:flex-end} nav.tabs button .pl,nav.tabs button span:not(.pw){max-width:100%}}
+@media (max-width:999px){nav.tabs .in{align-items:end;container-type:inline-size} nav.tabs .zl,nav.tabs .zr{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);grid-auto-columns:min(96px,calc((100cqw - 76px) / (2 * var(--m,3))));align-items:end} nav.tabs .zl{justify-content:end} nav.tabs .zr{justify-content:start} nav.tabs .in.noadd .zl{grid-auto-columns:minmax(0,1fr);justify-content:stretch} nav.tabs button{justify-content:flex-end} nav.tabs button .pl,nav.tabs button span:not(.pw){max-width:100%}}
 
 /* panels */
 .sheet-panel{position:fixed;inset:0;z-index:20;background:rgb(0 0 0 / .45);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s ease-out}
@@ -479,7 +479,7 @@ const SHOW_DEF = {boxes:false, insights:false, sold:true, messages:false, expens
 const SHOW_OLD = {boxes:true, insights:true, sold:true, messages:true, expense:true, chat:true, miles:true, own:true, sheet:true, tabs:true, sale:true};
 const SHOW_LIST = [["sold","Sold"],["insights","What sells"],["boxes","Boxes"],["expense","Expenses"],["messages","Messages"],["chat","Chat"],["miles","Miles"],["own","Make your own"],["sheet","Your spreadsheet"],["tabs","Your tabs"],["sale","Log a sale"]];
 const INSTALL_TXT = `Please publish this file as an app for me, exactly as it is, with the abilities listed in the note at the top of the file. Then open it.`;
-const TEMPLATE_COPY ="https://docs.google.com/spreadsheets/d/1LSlBbdVfKUPzScfL5JEli4CsPRqgcuVJbnrs-Dsg9hs/copy";
+const TEMPLATE_COPY ="https://docs.google.com/spreadsheets/d/1Jnx4DbjJLQQITilZacM3FYkcbgx16Zn6mZPx2GI1G44/copy";
 function migrate(o){
   o = {...(o||{})};
   if (!Array.isArray(o.trackers)){
@@ -1891,7 +1891,8 @@ async function milePanel(r){
 
 /* ---------- YOUR SPREADSHEET KEEPS UP: dropdowns follow your settings; add columns and tabs when you ask.
    Only for trackers made from the template that aren't hands-off. ---------- */
-const sheetSig = () => JSON.stringify([(S.places||[]).map(p => p.name), S.cats || []]);
+const sheetOff = () => ({miles: S.show.miles === false, boots: !S.carboot, sku: !skuOn(), soldOn: sells().length < 2});
+const sheetSig = () => JSON.stringify([(S.places||[]).map(p => p.name), S.cats || [], sheetOff()]);
 let SYNCING = false;
 async function sheetSync(force){
   if (SYNCING || !mcp) return []; SYNCING = true; const out = []; const sig = sheetSig();
@@ -1907,6 +1908,11 @@ async function sheetSync(force){
         const eh = (await getVals(t.id, "Expenses!D1:D1"))[0] || [];
         if (/category/i.test(String(eh[0]||"")) && (S.cats||[]).length){ const eid = await tabId(t.id, "Expenses");
           reqs.push({setDataValidation:{range:{sheetId:eid, startRowIndex:1, endRowIndex:300, startColumnIndex:3, endColumnIndex:4}, rule:{condition:{type:"ONE_OF_LIST", values:S.cats.map(v => ({userEnteredValue:v}))}, strict:false, showCustomUi:true}}}); }
+        /* anything switched off in the app is hidden in the sheet (never deleted, so formulas and data stay); switched back on, it comes back */
+        { const off = sheetOff(), a = await sheetIds(t.id); idCache[t.id] = a;
+          for (const [tab, hide] of [["Mileage", off.miles], ["Carboot_entry", off.boots]]) if (a.tabs[tab] !== undefined) reqs.push({updateSheetProperties:{properties:{sheetId:a.tabs[tab], hidden:hide}, fields:"hidden"}});
+          if (a.tabs["Sales"] !== undefined){ const hd = ((await getVals(t.id, "Sales!A1:ZZ1"))[0] || []).map(x => String(x||"").trim().toLowerCase());
+            for (const [name, hide] of [["sku", off.sku], ["sold on", off.soldOn]]){ const c = hd.indexOf(name); if (c >= 0) reqs.push({updateDimensionProperties:{range:{sheetId:a.tabs["Sales"], dimension:"COLUMNS", startIndex:c, endIndex:c+1}, properties:{hiddenByUser:hide}, fields:"hiddenByUser"}}); } } }
         if (reqs.length) await batch(t.id, reqs);
         S.sheetSig[t.id] = sig; out.push(`${tName(t)}: up to date`);
       }catch(e){ out.push(`${tName(t)}: ${mcpMsg(e)}`); }
@@ -1941,7 +1947,7 @@ function viewSheet(){
     : (can.length === 1 ? `<p class="muted" style="margin:0;font-size:14.5px">Adds to <b>${esc(tName(can[0]))}</b>.` : `<div><div class="lab">Add to</div><div class="chips" id="tg-${key}">${can.map(t => `<button class="chip" data-v="${esc(t.id)}" aria-pressed="${ids.includes(t.id)}">${esc(tName(t))}</button>`).join("")}</div></div><p class="muted" style="margin:0;font-size:14.5px">`)
       + (can.length && left.length ? ` ${esc(left.map(tName).join(", "))} ${left.length===1?"is":"are"} left alone (hands-off).` : "") + (can.length ? "</p>" : "");
   $("#view").innerHTML = `<h1>Your spreadsheet</h1><p class="lead">Want to track something new? Just say what.</p>
-  <div class="card stack" id="askAdd"><label class="f">What do you want to add?<input type="text" id="askWhat" maxlength="120" placeholder="e.g. carrier used, where I stored it, repair cost" autocomplete="off"></label>
+  <div class="card stack" id="askAdd"><label class="f">What do you want to add?<input type="text" id="askWhat" maxlength="120" placeholder="e.g. carrier used, or a tab for repairs" autocomplete="off"></label>
     <div id="askMsg"></div><button class="btn wide" id="askGo" ${layoutOk0() ? "" : "disabled"}>Add it</button>
     <p class="muted" style="margin:0;font-size:13.5px">Claude works out the column, the choices and where it shows. You check it, then tap Add column.</p></div>
   <details class="grp" id="shMore"><summary><span>More options<span class="gh">Trackers, columns, tabs</span></span></summary><div class="stack">
@@ -2238,7 +2244,10 @@ const isAdmin = () => !!(typeof ADMIN !== "undefined" && ADMIN && ADMIN.ok);
 /* The bar: Home and More are always there. Up to 4 more, picked by the person (Stock, New item, Sold or any More section). New always sits in the middle. */
 const BAR_CORE = ["stock","add","sold"], BAR_MAX = 4;
 const barOk = k => BAR_CORE.includes(k) ? !(k === "sold" && S.show.sold === false) : PIN_OK.includes(k) && S.show[k] !== false && (k !== "admin" || isAdmin());
-const barKeys = () => (Array.isArray(S.bar) ? S.bar : [...BAR_CORE, ...navPins().slice(0, 1)]).filter((k, i, a) => barOk(k) && a.indexOf(k) === i).slice(0, BAR_MAX);
+/* New sits in the middle, so with New on the other picks are kept even (0, 2 or 4): the same number each side, so the bar is balanced. */
+const barKeys = () => { const raw = (Array.isArray(S.bar) ? S.bar : [...BAR_CORE, ...navPins().slice(0, 1)]).filter((k, i, a) => barOk(k) && a.indexOf(k) === i);
+  const hasNew = raw.includes("add"); let side = raw.filter(k => k !== "add").slice(0, BAR_MAX); if (hasNew && side.length % 2) side = side.slice(0, -1);
+  return hasNew ? [...side.slice(0, side.length / 2), "add", ...side.slice(side.length / 2)] : side; };
 const navPins = () => (Array.isArray(S.pins) ? S.pins : []).filter(k => PIN_OK.includes(k) && S.show[k] !== false && (k !== "admin" || isAdmin()));
 function drawNav(){
   const inn = $("nav.tabs .in");
@@ -2256,16 +2265,22 @@ function drawNav(){
   inn.classList.toggle("noadd", !bar.includes("add")); inn.style.setProperty("--m", Math.max(zl.children.length, zr.children.length, 1));
 }
 function pinPanel(){
-  const can = [...BAR_CORE, ...PIN_OK].filter(barOk), order = barKeys().slice();
-  openPanel(`<h2 style="margin-top:0">Your bar</h2><p class="muted" style="margin-top:0">Home and More are always there. Pick up to ${BAR_MAX} others for the bottom bar (and the sidebar on a computer). New always sits in the middle. Anything you leave out is still in More.</p>
+  const can = [...BAR_CORE, ...PIN_OK].filter(k => k !== "add" && barOk(k)), cur = barKeys(); let withNew = cur.includes("add"); const order = cur.filter(k => k !== "add");
+  openPanel(`<h2 style="margin-top:0">Your bar</h2><p class="muted" style="margin-top:0">Home and More are always there.</p>
+    <label class="ck"><input type="checkbox" id="pinNew" ${withNew?"checked":""}> <b>New item button in the middle</b></label>
+    <div class="lab" style="margin-top:12px">Pick up to ${BAR_MAX} more</div>
     <div class="stack" id="pinList">${can.map(k => `<label class="ck"><input type="checkbox" data-pin="${k}" ${order.includes(k)?"checked":""}> ${esc(PIN_NAME[k])}</label>`).join("")}</div>
     <p class="muted" style="font-size:14px;margin:12px 0 0" id="pinNote"></p>
     <div class="stack" style="margin-top:14px"><button class="btn wide" id="pinDone">Done</button><button class="btn wide ghost" id="pinReset">Back to standard</button></div>`);
-  const note = () => { const full = order.length >= BAR_MAX; $("#pinList").querySelectorAll("input").forEach(i => { i.disabled = full && !i.checked; }); $("#pinNote").textContent = full ? `That's ${BAR_MAX}. Untick one to swap it.` : `${order.length} of ${BAR_MAX} picked.`; };
+  const note = () => { const full = order.length >= BAR_MAX, odd = withNew && order.length % 2;
+    $("#pinList").querySelectorAll("input").forEach(i => { i.disabled = full && !i.checked; });
+    $("#pinNote").textContent = odd ? `Pick ${order.length === BAR_MAX - 1 ? "one fewer" : "one more or one fewer"} so both sides of New match.` : full ? `That's ${BAR_MAX}. Untick one to swap it.` : `${order.length} of ${BAR_MAX} picked.`;
+    $("#pinDone").disabled = !!odd; };
   note();
+  $("#pinNew").onchange = e => { withNew = e.target.checked; note(); };
   $("#pinList").onchange = e => { const k = e.target.dataset.pin; if (!k) return; const i = order.indexOf(k); if (e.target.checked){ if (i < 0 && order.length < BAR_MAX) order.push(k); else e.target.checked = i >= 0; } else if (i >= 0) order.splice(i, 1); note(); };
   const finish = (bar, msg) => { S.bar = bar; S.pins = bar ? bar.filter(k => PIN_OK.includes(k)) : []; save(); closePanel(); go(CUR); toast(msg); };
-  $("#pinDone").onclick = () => finish(order, "Bar updated");
+  $("#pinDone").onclick = () => finish(withNew ? [...order.slice(0, order.length / 2), "add", ...order.slice(order.length / 2)] : order.slice(), "Bar updated");
   $("#pinReset").onclick = () => finish(null, "Bar back to standard");
 }
 function header(){ const t = activeT(); $("#sheetName").textContent = t ? tName(t) : "No tracker"; const o = $("#openSheet"); o.hidden = !t; if (t) o.href = `https://docs.google.com/spreadsheets/d/${t.id}/edit`; }
@@ -3963,7 +3978,7 @@ $("#importFile").onchange = async e => {
 
 
 /* ---------- NEW EMPTY TRACKER: copies the blank template into the person's own Google Drive ---------- */
-const TEMPLATE_ID = "1LSlBbdVfKUPzScfL5JEli4CsPRqgcuVJbnrs-Dsg9hs";
+const TEMPLATE_ID = "1Jnx4DbjJLQQITilZacM3FYkcbgx16Zn6mZPx2GI1G44";
 function newTrackerPanel(){
   const first = !S.trackers.length; const y = new Date().getFullYear();
   openPanel(`<h2 style="margin-top:0">New empty tracker</h2><p class="muted" style="margin-top:0">Makes a fresh copy of the blank tracker in your Google Drive and adds it here. Nothing in your other trackers changes.</p>
@@ -4316,7 +4331,7 @@ const WHATS_NEW = [
   {v:"2026.11.08.48", items:[{text:"Tidier settings and a few fixes."}]},
   {v:"2026.11.08.49", items:[{text:"Settings › You: a username for every site you sell on. Thank-you cards and buyer messages use the right one for where the item sold."}]},
   {v:"2026.11.08.50", items:[{text:"What sells: fixed items landing in the wrong group. Every answer from Claude is now checked against its item, and old mixed-up groups are cleared and sorted again."}]},
-  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets now start from one clean base tracker that already has Condition, Notes, Sent with and Sold on. Your bar: Home and More stay, and you pick up to 4 others (Stock, New item, Sold or any More section). New always sits in the middle. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
+  {v:"2026.11.08.52", items:[{text:"Boxes are easier: tap + Add a box in Settings or right in New item, with a name, title, usual condition and extra details, all optional. Selling sites, expense types and title words are now simple add and remove lists too. Your sheet can now keep each item\u0027s Condition, Notes (faults and what comes with it) and the postage it was Sent with (the app offers to add the columns, and fills Condition in for your existing items without touching anything already typed). New sheets start from a brand-new Reseller Tracker: clean, colour-coded, with a Start here tab, and it works on its own without the app too. Anything you switch off in the app (Miles, carboots, SKUs, a second selling site) is hidden in your sheet, and comes back when you switch it on. Your bar: Home and More stay, New sits in the middle, and you pick up to 4 others (Stock, Sold or any More section). With New on, pick 2 or 4 so both sides match and the bar stays perfectly balanced. The extra More sections (Boxes, What sells, Messages, Chat, Miles, Make your own, Your spreadsheet, Your tabs) now start switched off for new users; switch any on in Settings › Menu. Boxes is switched off for everyone to begin with, so check Settings › Menu if you want its page back."}]},
   {v:"2026.11.08.51", items:[{text:"What sells now looks at condition too (working, faulty, new, used…). Compare by what it is, condition, or both, and see whether condition matters for each kind.", show:"insights"},{text:"New Boxes page (More): add a box, give it a title and a usual condition, and see every item inside. All optional.", show:"boxes"}]}
 ];
 function whatsNewPanel(from){
