@@ -512,6 +512,9 @@ const LKEY = "reseller-desk";
 function loadLocal(){ try{ return JSON.parse(localStorage.getItem(LKEY)||"{}"); }catch{ return {}; } }
 function saveLocal(){ try{ localStorage.setItem(LKEY, JSON.stringify(S)); }catch{} }
 let S = migrate(loadLocal());
+/* light / dark: "auto" follows the phone; the choice is saved with your settings */
+const applyTheme = () => { try{ const t = S.theme; if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }catch{} };
+applyTheme();
 
 /* ---------- PER-SHEET SETTINGS. Everything about how a sheet works (usernames, sites, couriers, places, carboots, SKUs, boxes,
    condition/notes/couriers, expenses, miles, photos, listing wording) belongs to a sheet. Sheets share one set (S.globalCfg) unless
@@ -717,6 +720,7 @@ const whereChips = (id, sel) => `<div class="chips" data-multi id="${id}">${COL_
 const readWhere = id => [...document.querySelectorAll(`#${id} button`)].filter(b => b.getAttribute("aria-pressed")==="true").map(b => b.dataset.v);
 document.addEventListener("change", e => { if (e.target && e.target.id === "repOff"){ S.repairOff = {...(S.repairOff||{}), [S.active]: e.target.checked}; save(); SALES = null; toast("Saved"); } });
 document.addEventListener("pointerdown", () => { window.__tapped = true; }, {once:true, capture:true});
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("#themeSeg button"); if (!b) return; S.theme = b.dataset.th === "auto" ? undefined : b.dataset.th; if (S.theme === undefined) delete S.theme; applyTheme(); save(); document.querySelectorAll("#themeSeg button").forEach(x => x.setAttribute("aria-pressed", x === b)); });
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".chips[data-multi] button"); if (b) b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")!=="true"); });
 document.addEventListener("change", e => { const sel = e.target.closest && e.target.closest("select[data-xs]"); if (!sel) return; const t = sel.parentElement.querySelector("[data-xc]"); if (!t) return;
   if (sel.value === "__other"){ t.hidden = false; t.focus(); } else { t.value = sel.value; t.hidden = true; t.dispatchEvent(new Event("input", {bubbles:true})); } });
@@ -4084,6 +4088,8 @@ function viewSettings(){
       ${targetChips("via", [S.active], "Add to")}<div id="viaMsg"></div><button class="btn ghost wide" id="addVia">Add a Sold on column</button></div>
     </div></details>
     </section>`}
+    <section class="setsec"><div class="setsec-h"><b>Look</b><span>Light or dark.</span></div>
+    <div class="card stack" style="gap:10px"><div class="seg" id="themeSeg" role="group" aria-label="Light or dark">${[["auto","Match my phone"],["light","Light"],["dark","Dark"]].map(([k,l]) => `<button type="button" data-th="${k}" aria-pressed="${(S.theme === "light" || S.theme === "dark" ? S.theme : "auto") === k}">${l}</button>`).join("")}</div></div></section>
     <section class="setsec"><div class="setsec-h"><b>Menu and bar</b><span>What shows, and where you open it.</span></div>
     <details class="grp"><summary><span>Bar and widgets<span class="gh">What's in your bar, and widget layouts</span></span></summary><div class="stack">
     <p class="muted" style="margin:6px 0 0;font-size:14.5px">To move, resize, add or remove widgets on Home, Stock, Sold, Expenses or More, press and hold one, or tap <b>Edit widgets</b> under them.</p>
@@ -4617,7 +4623,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.09.71";
+const APP_VERSION = "2026.11.09.72";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4653,7 +4659,8 @@ const WHATS_NEW = [
   {v:"2026.11.09.68", items:[{text:"Your tabs now finds the headings even when they are not in row 1."}]},
   {v:"2026.11.09.69", items:[{text:"The bar chooser no longer offers the hidden Spreadsheet page."}]},
   {v:"2026.11.09.70", items:[{text:"Make your own can now add a tab, a column and a Home widget for whatever you want to track. It shows you everything first and only changes the sheet when you tap Make these changes.", show:"own"}]},
-  {v:"2026.11.09.71", items:[{text:"Make your own asks questions when your request is short, and has an Undo button after it changes your sheet.", show:"own"}]}
+  {v:"2026.11.09.71", items:[{text:"Make your own asks questions when your request is short, and has an Undo button after it changes your sheet.", show:"own"}]},
+  {v:"2026.11.09.72", items:[{text:"Light and dark mode: choose Match my phone, Light or Dark in Settings › Look."}]}
 ];
 function whatsNewPanel(from){
   const vs = WHATS_NEW.filter(w => from ? w.v > from && w.v <= APP_VERSION : true).slice(from ? 0 : -4);
@@ -5120,7 +5127,7 @@ const before = JSON.stringify(S.trackers) + S.active;
 if (S.trackers.length) go(startTab);
 setTimeout(() => { const v = $("#view"); if (v && v.textContent.includes("Loading your settings")){ try{ go(startTab); }catch(e){ bootFail(e); } if (v.textContent.includes("Loading your settings")) bootFail("The first page did not load. Check your connection and try again."); } }, 15000);
 syncReady.finally(() => {
-  try{ header(); drawSync(); }catch(e){ bootFail(e); }
+  try{ applyTheme(); header(); drawSync(); }catch(e){ bootFail(e); }
   const ju = S.justUpdated; if (ju && ju.to === APP_VERSION){ delete S.justUpdated; save(); setTimeout(() => { if (!whatsNewPanel(ju.from)) checkTrackers(false).catch(() => {}); }, 1200); }
   else setTimeout(() => checkNewYear(false).catch(() => false).then(shown => { if (!shown) return checkUpdate(false).catch(() => {}).then(() => checkTrackers(false)); }).catch(() => {}), 2500);
   const changed = JSON.stringify(S.trackers) + S.active !== before;
