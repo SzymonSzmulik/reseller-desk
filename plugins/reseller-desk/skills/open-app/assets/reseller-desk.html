@@ -3161,6 +3161,7 @@ function cleanHtml(src){
   }).join("");
   return walk(root);
 }
+const noSellerSays = t => String(t||"").replace(/(^|>|[.!?]\s+)(?:the\s+)?(?:seller|owner|previous owner|vendor)\s+(?:states?|stated|says?|said|claims?|claimed|advises?|reports?|describes?)(?:\s+that)?\s+([a-z])/gi, (m, p, c) => p + c.toUpperCase()).replace(/\b(?:as\s+)?(?:the\s+)?(?:seller|owner)\s+(?:states?|stated|says?|claims?)(?:\s+that)?\s*,?\s*/gi, "").replace(/\b(?:as\s+)?(?:stated|described|claimed)\s+by\s+the\s+(?:seller|owner)\s*,?\s*/gi, "");
 function withExtra(html){
   const x = String(S.descExtra||"").trim(); if (!x) return html;
   return html.includes(esc(x)) || html.includes(x) ? html : `${html}\n<p>${esc(x)}</p>`;
@@ -3255,6 +3256,7 @@ Seller's notes:
 - Included: ${f.incl||"(not given; include only what the photos clearly show)"}
 - Extra note to include in the description: ${f.extra||"(none)"}
 - Words the seller likes in titles: ${S.titleWords||"(none)"}
+- NEVER write "the seller states", "the seller says", "the seller claims", "as stated by the seller" or anything like it, in any field. Say the fact plainly instead (for example "Otherwise believed to be fully working, but not tested"). The listing is written in the seller's own voice.
 
 Rules:
 - Model: only use a model number if the seller gave it or it is clearly printed and readable in a photo. If not sure, leave it out of title and specifics and set model_sure to false with your best guess in model_guess and where the label usually is in label_hint.
@@ -3280,7 +3282,7 @@ Reply with only this JSON:
       if (imgs.length) opts.images = imgs; }
     const out = await sampleJsonSkip(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
-    out.description_html = withExtra(String(out.description_html||""));
+    out.description_html = withExtra(noSellerSays(String(out.description_html||""))); out.condition_description = noSellerSays(out.condition_description); out.title = noSellerSays(out.title);
     ADD.listing = out; ADD.fields = f; ADD.sku = ""; ADD.saved = false;
     renderListing();
   }catch(e){ msg.innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; }
@@ -4644,7 +4646,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.10.82";
+const APP_VERSION = "2026.11.10.83";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4661,6 +4663,7 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.83", items:[{text:"Listings never say \"the seller states\" any more. They're written in your own voice."}]},
   {v:"2026.11.10.82", items:[{text:"New item: photos are shrunk and re-saved as normal JPEGs before they're read, so photos of screens and big photos stop failing."}]},
   {v:"2026.11.10.81", items:[{text:"New item: a photo that can't be read is skipped and the rest are used, so you don't have to remove it yourself."}]},
   {v:"2026.11.09.80", items:[{text:"Places that charge to get in (other than carboots) now get their own entry tab in your sheet, like Carboot_entry. Their entry fees are saved there instead of Expenses."}]},
