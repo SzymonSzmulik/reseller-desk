@@ -2460,6 +2460,18 @@ async function undoOwn(b, m){
     toast("Undone");
   }catch(e){ busy(b, false); if (m) m.innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; }
 }
+/* a photo that can't be read is skipped: find the readable ones and carry on with those, so nobody has to remove photos by hand */
+async function sampleJsonSkip(prompt, opts){
+  try{ return await sample.json(prompt, opts); }
+  catch(e){
+    if (!(e && e.code === "image_rejected" && opts.images && opts.images.length > 1)) throw e;
+    const good = []; for (const im of opts.images){ try{ await sample.json('Reply with {"ok":true}', {modelTier:"default", cache:false, images:[im]}); good.push(im); }catch{} }
+    if (!good.length) throw e;
+    const out = await sample.json(prompt, {...opts, images:good});
+    const n = opts.images.length - good.length; if (n) toast(`Skipped ${n} photo${n > 1 ? "s" : ""} that couldn't be read`);
+    return out;
+  }
+}
 async function runOwn(f){
   const t = activeT();
   openPanel(`<h2 style="margin-top:0">${esc(f.name)}</h2><p class="muted" style="margin-top:-4px">Using ${esc(tName(t))}</p><div id="owOut" class="stack"><p class="muted"><span class="spin" aria-hidden="true"></span> Reading your tracker…</p></div><button class="btn wide ghost" id="owClose2" style="margin-top:14px">Close</button>`);
@@ -3265,7 +3277,7 @@ Reply with only this JSON:
   try{
     const opts = {modelTier:"default", cache:false};
     if (ADD.photos.length && imgOK) opts.images = ADD.photos.slice(0,6);
-    const out = await sample.json(prompt, opts);
+    const out = await sampleJsonSkip(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
     out.description_html = withExtra(String(out.description_html||""));
     ADD.listing = out; ADD.fields = f; ADD.sku = ""; ADD.saved = false;
@@ -4631,7 +4643,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.09.80";
+const APP_VERSION = "2026.11.10.81";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4648,6 +4660,7 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.81", items:[{text:"New item: a photo that can't be read is skipped and the rest are used, so you don't have to remove it yourself."}]},
   {v:"2026.11.09.80", items:[{text:"Places that charge to get in (other than carboots) now get their own entry tab in your sheet, like Carboot_entry. Their entry fees are saved there instead of Expenses."}]},
   {v:"2026.11.09.79", items:[{text:"A Postage Service column in your sheet gets your couriers as its dropdown."}]},
   {v:"2026.11.09.78", items:[{text:"Places you add in the app now also appear in the Places tab of your sheet, with their totals."}]},
