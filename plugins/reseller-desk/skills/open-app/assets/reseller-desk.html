@@ -3276,7 +3276,8 @@ Reply with only this JSON:
 {"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","model_sure":true,"model_guess":"","label_hint":""}`;
   try{
     const opts = {modelTier:"default", cache:false};
-    if (ADD.photos.length && imgOK) opts.images = ADD.photos.slice(0,6);
+    if (ADD.photos.length && imgOK){ const imgs = []; for (const f of ADD.photos.slice(0,6)){ try{ const b64 = await shrink(f), bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); imgs.push(new Blob([u], {type:"image/jpeg"})); }catch{} }
+      if (imgs.length) opts.images = imgs; }
     const out = await sampleJsonSkip(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
     out.description_html = withExtra(String(out.description_html||""));
@@ -4643,7 +4644,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.10.81";
+const APP_VERSION = "2026.11.10.82";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4660,6 +4661,7 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.82", items:[{text:"New item: photos are shrunk and re-saved as normal JPEGs before they're read, so photos of screens and big photos stop failing."}]},
   {v:"2026.11.10.81", items:[{text:"New item: a photo that can't be read is skipped and the rest are used, so you don't have to remove it yourself."}]},
   {v:"2026.11.09.80", items:[{text:"Places that charge to get in (other than carboots) now get their own entry tab in your sheet, like Carboot_entry. Their entry fees are saved there instead of Expenses."}]},
   {v:"2026.11.09.79", items:[{text:"A Postage Service column in your sheet gets your couriers as its dropdown."}]},
