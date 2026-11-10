@@ -3284,6 +3284,7 @@ Reply with only this JSON:
     if (!out || !out.title) throw {code:"invalid_json"};
     out.description_html = withExtra(noSellerSays(String(out.description_html||""))); out.condition_description = noSellerSays(out.condition_description); out.title = noSellerSays(out.title);
     ADD.listing = out; ADD.fields = f; ADD.sku = ""; ADD.saved = false;
+    if (skuOn()){ try{ ADD.sku = await newSku(ADD.box); }catch{} }
     renderListing();
   }catch(e){ msg.innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; }
   finally{ busy(btn, false); }
@@ -3300,7 +3301,7 @@ function renderListing(){
     ${L.model_sure===false?`<div class="note warn"><b>Check the model.</b> Claude thinks it's ${esc(L.model_guess||"unclear")}${L.label_hint?`. The label is usually ${esc(L.label_hint)}`:""}. Type the model in "What is it?" and tap Write again, or edit the title below.</div>`:""}
     <p class="muted" style="margin:0">Each box goes into the matching box on eBay. Tap Copy, then paste. You can edit any of them first.</p>
     ${fieldCard("Title", `${title.length}/80 characters`, `<input type="text" id="fTitle" maxlength="80" value="${esc(title)}">`, "title")}
-    ${skuOn() ? fieldCard("Custom label (SKU)", "Made when you save. Goes in eBay's Custom label box.", `<input type="text" id="fSku" readonly value="${esc(ADD.sku||"Tap Save to make one")}">`, ADD.sku?"sku":"") : ""}
+    ${skuOn() ? fieldCard("Custom label (SKU)", "Made for you already, and saved with the item. Goes in eBay's Custom label box.", `<input type="text" id="fSku" readonly value="${esc(ADD.sku||"Tap Save to make one")}">`, ADD.sku?"sku":"") : ""}
     ${fieldCard("Item specifics", "Fill these in one by one on eBay", `<table><tbody>${spec.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`, "")}
     ${fieldCard("Condition", "Pick this in eBay's Condition dropdown", `<input type="text" readonly value="${esc(L.condition||"")}">`, "")}
     ${fieldCard("Condition description", "The box under Condition", `<textarea id="fCond" maxlength="1000">${esc(L.condition_description||"")}</textarea>`, "cond")}
@@ -4646,7 +4647,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.10.83";
+const APP_VERSION = "2026.11.10.84";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4663,6 +4664,7 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.84", items:[{text:"New item: the SKU is made as soon as the listing is written, so it's already there, and it's saved with the item."}]},
   {v:"2026.11.10.83", items:[{text:"Listings never say \"the seller states\" any more. They're written in your own voice."}]},
   {v:"2026.11.10.82", items:[{text:"New item: photos are shrunk and re-saved as normal JPEGs before they're read, so photos of screens and big photos stop failing."}]},
   {v:"2026.11.10.81", items:[{text:"New item: a photo that can't be read is skipped and the rest are used, so you don't have to remove it yourself."}]},
