@@ -1,13 +1,17 @@
 {
   "name": "reseller-desk",
-  "owner": { "name": "Szymon Szmulik" },
-  "metadata": { "description": "Reseller Desk: an app and chat skills for carboot and charity-shop resellers." },
+  "owner": {
+    "name": "Szymon Szmulik"
+  },
+  "metadata": {
+    "description": "Reseller Desk: an app and chat skills for carboot and charity-shop resellers."
+  },
   "plugins": [
     {
       "name": "reseller-desk",
       "source": "./plugins/reseller-desk",
       "description": "Listings from photos, stock, sales, profit, expenses and miles, all in your own Google Sheet.",
-      "version": "0.4.38"
+      "version": "0.4.39"
     }
   ]
 }

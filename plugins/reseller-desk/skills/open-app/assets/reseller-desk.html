@@ -615,9 +615,21 @@ function readTargets(key, ids){ const el = $("#tg-"+key); const pickd = el ? [..
 
 /* ---------- capabilities ---------- */
 let mcp = null, sample = null, imgOK = false;
+/* the person picks the model and effort in Settings › Claude model (S.model, S.effort). Default: Sonnet 5.5 at low effort, the cheapest that does these jobs well. A model that can't be used falls back to a matching tier by itself. */
+const MODEL_IDS = {haiku:"claude-haiku-5-5", sonnet:"claude-sonnet-5-5", opus:"claude-opus-5-5"}, MODEL_NAMES = {haiku:"Haiku 5.5", sonnet:"Sonnet 5.5", opus:"Opus 5.5"}, EFFORTS = ["low","medium","high"], TIER_OF = {low:"quick", medium:"default", high:"complex"};
+const modelKey = () => MODEL_IDS[S.model] ? S.model : "sonnet", effortKey = () => EFFORTS.includes(S.effort) ? S.effort : "low";
+function lowSample(raw){
+  const go = async (fn, a, o) => {
+    return await fn(a, {...(o || {}), model:MODEL_IDS[modelKey()], effort:effortKey(), modelTier:TIER_OF[effortKey()]});
+  };
+  const w = (a, o) => go((x, y) => raw(x, y), a, o);
+  w.json = (a, o) => go((x, y) => raw.json(x, y), a, o);
+  w.limits = (...a) => raw.limits(...a);
+  return w;
+}
 const ready = (async () => {
   try{ mcp = await window.claude?.use?.("mcp"); }catch{ mcp = null; }
-  try{ sample = await window.claude?.use?.("sample"); const l = sample ? await sample.limits().catch(()=>null) : null; imgOK = !!l?.images; }catch{ sample = null; }
+  try{ const raw = await window.claude?.use?.("sample"); sample = raw ? lowSample(raw) : null; const l = sample ? await sample.limits().catch(()=>null) : null; imgOK = !!l?.images; }catch{ sample = null; }
 })();
 function mcpMsg(e, server=GS){
   switch(e?.code){
@@ -636,7 +648,7 @@ function sampleMsg(e){
   switch(e?.code){
     case "not_granted": case "sampling_disabled": return "Claude isn't allowed for this app, so it can't write listings. Everything else still works.";
     case "rate_limited": return "You've hit your Claude usage limit for now. Try again a bit later.";
-    case "image_rejected": return "One of the photos couldn't be read. Try a different photo (JPG or PNG).";
+    case "image_rejected": return "None of those photos could be read, so they were skipped.";
     case "invalid_json": return "Claude's answer came back jumbled. Tap the button again.";
     case "refused": return "Claude wouldn't write this one. Try different photos or notes.";
     case "session_expired": return "Sign in to claude.ai again, then try again.";
@@ -649,10 +661,14 @@ async function gs(tool, input){ await ready; if(!mcp) throw {code:"capability_di
 const getVals = (id, range) => gs("get_values", {spreadsheetId:id, range}).then(p => (p && p.values) || []);
 const batch = (id, requests) => gs("update_spreadsheet", {spreadsheetId:id, requests});
 async function sheetIds(id){
-  const p = await gs("get_spreadsheet", {spreadsheetId:id, fields:["properties.title","sheets.properties.sheetId","sheets.properties.title"]});
-  const out = {title:p?.properties?.title||"", tabs:{}}; for (const s of (p?.sheets||[])) out.tabs[s.properties.title] = s.properties.sheetId; return out;
+  const raw = await gs("get_spreadsheet", {spreadsheetId:id, fields:["properties.title","sheets.properties.sheetId","sheets.properties.title"]});
+  /* some answers come wrapped in a "content" layer: unwrap it so the tabs are found either way */
+  let p = raw; for (let i = 0; i < 3 && p && !p.sheets && (p.content || p.result || p.data); i++) p = p.content || p.result || p.data;
+  const out = {title:p?.properties?.title||"", tabs:{}, got:Object.keys(raw && typeof raw === "object" ? raw : {}).join(",") || typeof raw}; for (const s of (p?.sheets||[])) out.tabs[s.properties.title] = s.properties.sheetId; return out;
 }
 const idCache = {};
+/* the update sheet's tab: "Sheet1" if it has that name, otherwise its first tab (the app reads it without a tab name, so that is the one it means) */
+async function updSid(){ idCache[UPD_SHEET] = await sheetIds(UPD_SHEET); const t = idCache[UPD_SHEET].tabs, k = t.Sheet1 !== undefined ? "Sheet1" : Object.keys(t)[0]; if (k === undefined) throw {code:"tool_error", message:`the update sheet has no tabs (Google sent: ${idCache[UPD_SHEET].got})`}; return t[k]; }
 async function tabId(id, name){ if(!idCache[id]) idCache[id] = await sheetIds(id); const v = idCache[id].tabs[name]; if(v===undefined) throw {code:"tool_error", message:`no "${name}" tab in that sheet`}; return v; }
 function cell(v){ if (v===null) return {}; if (v && typeof v==="object" && "date" in v) return {userEnteredValue:{numberValue:v.date}, userEnteredFormat:{numberFormat:{type:"DATE",pattern:v.pat||"dd/mm/yyyy"}}};
   if (typeof v==="number") return {userEnteredValue:{numberValue:v}}; return {userEnteredValue:{stringValue:String(v)}}; }
@@ -1753,6 +1769,7 @@ function searchIndex(){
   const sec = (n, d, kw, k) => I.push({n, d, kw, at:"Spreadsheet settings", f:() => jumpTo("sheetset", () => secEl(k))});
   const set = (n, d, kw, txt) => I.push({n, d, kw, at:"Settings", f:() => jumpTo("setup", () => grpEl(txt))});
   const act = (n, d, kw, fn) => I.push({n, d, kw, at:"Action", f:fn});
+  set("Claude model","Choose which Claude model does the work, and the effort","model sonnet opus haiku effort usage low high cheaper","Claude model");
   page("Home","Your numbers and widgets","profit gross sales dashboard","home");
   page("New item","Add photos, Claude writes the listing","add list listing photos sku new","add");
   page("Stock","Items you have listed, edit, return or delete","listed inventory returns edit delete","stock");
@@ -2426,13 +2443,14 @@ function askPanel(){
   openPanel(`<h2 style="margin-top:0">Ask Claude</h2><p class="muted" style="margin-top:-4px">Tell it what to do with ${esc(tName(t))}, in your own words. You see every change before anything's saved.</p><div class="stack">
     <textarea id="akText" placeholder="e.g. mark the Kodak camera as sold for £18.99, fees £2.40" style="min-height:96px">${esc(ASK.text)}</textarea>
     <div class="chips" id="akEx">${ex.map(x => `<button class="chip" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-    ${imgOK ? `<label class="drop" style="padding:14px"><input type="file" id="akFiles" accept="image/*" multiple hidden><strong>+ Add screenshots</strong><span class="muted" style="font-size:14px">Orders, receipts, listings. Up to 4.</span></label><div class="thumbs" id="akThumbs"></div>` : `<p class="muted" style="margin:0;font-size:14px">Screenshots work when this app is open on claude.ai.</p>`}
+    ${imgOK ? `<label class="drop" style="padding:14px"><input type="file" id="akFiles" accept="image/*" multiple hidden><strong>+ Add screenshots</strong><span class="muted" style="font-size:14px">Orders, receipts, listings. Up to 4. You can drag them in.</span></label><div class="thumbs" id="akThumbs"></div>` : `<p class="muted" style="margin:0;font-size:14px">Screenshots work when this app is open on claude.ai.</p>`}
     <div id="akMsg"></div><button class="btn wide" id="akGo">Ask</button><button class="btn wide ghost" id="akClose">Close</button></div>`);
   const thumbs = () => { const h = $("#akThumbs"); if (h) h.innerHTML = ASK.files.map((f, i) => `<button class="item" data-rm="${i}" style="width:auto;padding:0;border:0" aria-label="Remove screenshot"><img src="${URL.createObjectURL(f)}" alt=""></button>`).join(""); };
   thumbs();
   $("#akText").oninput = e => { ASK.text = e.target.value; };
   $("#akEx").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; $("#akText").value = ASK.text = b.dataset.v.replace(" (screenshot)", ""); $("#akText").focus(); };
   $("#akFiles") && ($("#akFiles").onchange = e => { ASK.files = [...ASK.files, ...[...e.target.files].filter(f => /^image\//.test(f.type))].slice(0, 4); e.target.value = ""; thumbs(); });
+  $("#akFiles") && dropZone($("#akFiles").closest("label"), fs => { ASK.files = [...ASK.files, ...fs].slice(0, 4); thumbs(); });
   $("#akThumbs") && ($("#akThumbs").onclick = e => { const b = e.target.closest("[data-rm]"); if (!b) return; ASK.files.splice(+b.dataset.rm, 1); thumbs(); });
   $("#akClose").onclick = closePanel;
   $("#akGo").onclick = async () => { const text = $("#akText").value.trim();
@@ -2461,24 +2479,50 @@ async function undoOwn(b, m){
   }catch(e){ busy(b, false); if (m) m.innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; }
 }
 /* a photo that can't be read is skipped: find the readable ones and carry on with those, so nobody has to remove photos by hand */
+function useWeek(){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate(); }
+/* rough count only: the app can't read your real Claude limit, so it counts its own Claude requests this week */
+function trackUse(photos){ try{ const w = useWeek(); if (!S.use || S.use.w !== w) S.use = {w, n:0, p:0}; S.use.n++; S.use.p += photos || 0; save(); }catch{} }
+function usageNote(photos, what){
+  const u = S.use && S.use.w === useWeek() ? S.use : {n:0, p:0}, big = photos > 6;
+  return `<div class="note ${big ? "warn" : "info"}" style="font-size:14px"><b>${esc(what || "This")} uses some of your Claude usage.</b>${photos ? ` Reading ${photos} photo${photos > 1 ? "s" : ""} costs more than a plain request${big ? " (a lot more, so only add the photos that help)" : ""}.` : ""} This week this app has made about ${u.n} Claude request${u.n === 1 ? "" : "s"}${u.p ? ` and read ${u.p} photo${u.p === 1 ? "" : "s"}` : ""}. Claude is set to ${MODEL_NAMES[modelKey()]} at ${effortKey()} effort (change it in Settings › Claude model). The app can't see your real remaining limit, so check your usage in Claude if you're running low.</div>`;
+}
+async function goodPhotos(arr){
+  try{ await sample.json('Reply with {"ok":true}', {modelTier:"default", cache:false, images:arr}); return arr; }
+  catch(e){ if (!(e && e.code === "image_rejected")) throw e; if (arr.length < 2) return []; const m = arr.length >> 1; return [...await goodPhotos(arr.slice(0, m)), ...await goodPhotos(arr.slice(m))]; }
+}
 async function sampleJsonSkip(prompt, opts){
+  const imgs = opts.images || []; trackUse(imgs.length);
   try{ return await sample.json(prompt, opts); }
   catch(e){
-    if (!(e && e.code === "image_rejected" && opts.images && opts.images.length > 1)) throw e;
-    const good = []; for (const im of opts.images){ try{ await sample.json('Reply with {"ok":true}', {modelTier:"default", cache:false, images:[im]}); good.push(im); }catch{} }
-    if (!good.length) throw e;
-    const out = await sample.json(prompt, {...opts, images:good});
-    const n = opts.images.length - good.length; if (n) toast(`Skipped ${n} photo${n > 1 ? "s" : ""} that couldn't be read`);
+    if (!(e && e.code === "image_rejected" && imgs.length)) throw e;
+    let good = imgs.length > 1 ? await goodPhotos(imgs) : [];
+    const o2 = {...opts}; let out;
+    if (good.length) o2.images = good; else delete o2.images;
+    try{ out = await sample.json(prompt, o2); }
+    catch(e2){ if (e2 && e2.code === "image_rejected" && o2.images){ good = []; delete o2.images; out = await sample.json(prompt, o2); } else throw e2; }
+    const n = imgs.length - good.length; if (n) toast(good.length ? `Skipped ${n} photo${n > 1 ? "s" : ""} that couldn't be read` : "No photo could be read, so this used your notes only");
     return out;
   }
 }
+/* drag photos onto a box: take(files) gets the image files */
+function dropZone(el, take){
+  if (!el || el.dataset.dz) return; el.dataset.dz = "1";
+  const ok = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+  const on = v => { el.style.outline = v ? "2px dashed var(--fg)" : ""; el.style.background = v ? "var(--accent-soft)" : ""; };
+  ["dragenter","dragover"].forEach(ev => el.addEventListener(ev, e => { if (!ok(e)) return; e.preventDefault(); on(true); }));
+  el.addEventListener("dragleave", e => { if (!el.contains(e.relatedTarget)) on(false); });
+  el.addEventListener("drop", e => { on(false); if (!ok(e)) return; e.preventDefault();
+    const fs = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(f.name));
+    fs.length ? take(fs) : toast("Drop photos or screenshots here"); });
+}
+if (!window.__dzGuard){ window.__dzGuard = 1; ["dragover","drop"].forEach(ev => window.addEventListener(ev, e => { if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files")) e.preventDefault(); })); }
 async function runOwn(f){
   const t = activeT();
   openPanel(`<h2 style="margin-top:0">${esc(f.name)}</h2><p class="muted" style="margin-top:-4px">Using ${esc(tName(t))}</p><div id="owOut" class="stack"><p class="muted"><span class="spin" aria-hidden="true"></span> Reading your tracker…</p></div><button class="btn wide ghost" id="owClose2" style="margin-top:14px">Close</button>`);
   $("#owClose2").onclick = closePanel; const out = () => $("#owOut");
   await ready; if (!sample){ out().innerHTML = `<div class="note err">Claude isn't available here. Open this app on claude.ai.</div>`; return; }
   let tabs; try{ tabs = await ownTabs(t); }catch(e){ if (out()) out().innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; return; }
-  if (!out()) return; out().innerHTML = `<p class="muted"><span class="spin" aria-hidden="true"></span> Claude is working on it… (up to a minute)</p>`;
+  if (!out()) return; out().innerHTML = `<p class="muted"><span class="spin" aria-hidden="true"></span> Claude is working on it… (up to a minute)</p>${usageNote(f.images ? f.images.length : 0, f.name)}`;
   const data = tabs.map(tb => tabText(tb, 70000)).join("\n");
   const locked = tabs.flatMap(tb => (tb.v[tb.hr]||[]).filter(h => OWN_LOCK.test(String(h).trim())).map(h => `${tb.name} › ${h}`));
   const prompt = `You help a reseller with their own Google Sheet tracker. Today is ${fmtD(today())}. Money is GBP. Dates are DD/MM/YYYY. UK English.
@@ -2491,15 +2535,8 @@ ${data}
 Reply with only this JSON:
 {"answer":"short plain-text answer for them (no markdown tables; use short lines)","changes":[{"tab":"tab name","row":12,"column":"exact column heading","value":"new value"}],"new_rows":[{"tab":"tab name","values":{"exact column heading":"value"}}],"new_tabs":[{"name":"Tab name","heads":["Column heading"]}],"new_columns":[{"name":"Heading for the Sales tab","type":"text or number or money","choices":[]}],"widgets":[{"title":"short title","tab":"tab name","kind":"count or sum or latest","column":"heading, for sum or latest"}]}
 You CAN add a new tab ("new_tabs"), a new column on the Sales tab ("new_columns") and a Home widget that shows a count, total or latest entry from a tab ("widgets"). When the request is a new thing to track, set up the tab or column AND a widget so it works like a built-in feature. If the request is short or vague (for example just "add a warehouse cost tab"), do NOT guess: ask 2 or 3 short numbered questions in "answer" (what to track, which columns, what the widget should show) and change nothing; the person will reply and you will be asked again. Rules: only fill "changes" or "new_rows" if the request asks to change or add to the sheet; otherwise leave them empty. Use exact tab names, row numbers and column headings from the data. Never change ${locked.length ? locked.join(", ") : "formula columns"}. Write dates as DD/MM/YYYY and money as plain numbers. If something is unclear, say so in "answer" and change nothing. At most 100 changes, 3 new tabs, 5 new columns and 3 widgets.`;
-  let res; const run = imgs => sample.json(prompt, {modelTier:"default", cache:false, ...(imgs && imgs.length && imgOK ? {images:imgs} : {})});
-  try{ res = await run(f.images); }catch(e){
-    /* a photo that can't be read is skipped: find the good ones and carry on without the bad ones */
-    if (e && e.code === "image_rejected" && f.images && f.images.length > 1){
-      const good = []; for (const im of f.images){ try{ await sample.json('Reply with {"ok":true}', {modelTier:"default", cache:false, images:[im]}); good.push(im); }catch{} }
-      if (good.length){ try{ res = await run(good); if (out()) toast(`Skipped ${f.images.length - good.length} photo${f.images.length - good.length > 1 ? "s" : ""} that couldn't be read`); }catch(e2){ if (out()) out().innerHTML = `<div class="note err">${esc(sampleMsg(e2))}</div>`; return; } }
-    }
-    if (!res){ if (out()) out().innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; return; }
-  }
+  let res; try{ res = await sampleJsonSkip(prompt, {modelTier:"default", cache:false, ...(f.images && f.images.length && imgOK ? {images:f.images} : {})}); }
+  catch(e){ if (out()) out().innerHTML = `<div class="note err">${esc(sampleMsg(e))}</div>`; return; }
   if (!out()) return;
   /* check every proposed change against the sheet: only these tabs, real rows and headings, never locked columns, never formulas */
   const tabOf = n => tabs.find(tb => tb.name.toLowerCase() === String(n||"").trim().toLowerCase());
@@ -2791,7 +2828,7 @@ async function autoSort(all){
       if (note()) note().innerHTML = `<div class="note info" style="margin-top:14px"><span class="spin" aria-hidden="true"></span> Claude is sorting your items by what they are and their condition… ${Math.min(i, todo.length)} of ${todo.length}</div>`;
       const part = todo.slice(i, i + 40);
       const known = [...new Set([...Object.values(S.groupFix||{}), ...Object.values(gm)])].slice(0, 30);
-      const out = await sample.json(`You sort a second-hand reseller's stock so they can see which kinds of item sell best, and in what condition.
+      trackUse(0); const out = await sample.json(`You sort a second-hand reseller's stock so they can see which kinds of item sell best, and in what condition.
 The seller may sell anything: electronics, clothes, shoes, books, toys, homeware, collectables.
 For each numbered title give two things.
 1) "g" = group: what the item itself IS (the main thing being sold).
@@ -3012,14 +3049,24 @@ const boxLabel = b => { const t = boxTitle(b), c = boxCondInfo(b).cond, x = boxN
    Rows: A time | B report id | C sender id | D name | E app version | F page | G what happened | H status (Open/Fixed) | I device.
    The publisher (isAdmin()) gets More › Bug reports to read them and mark them fixed. ---------- */
 const BUGS = {rows:[], at:0};
+let BUGTAB = null;
+/* the Admin panel asks for this twice at once, so share one lookup per chat sheet; find the tab whatever its capitals, and if Google says it already exists, look again instead of failing */
 async function bugTab(){
   const id = await chatFind(); if (!id) throw {message:"Bug reports aren't set up yet. The app's owner needs to turn on Chat first."};
-  const a = await sheetIds(id); let sid = a.tabs.Bugs;
+  if (BUGTAB && BUGTAB.id === id) return BUGTAB.p;
+  const p = bugTab0(id).catch(e => { if (BUGTAB && BUGTAB.id === id) BUGTAB = null; throw e; }); BUGTAB = {id, p}; return p;
+}
+async function bugTab0(id){
+  const find = a => { const k = Object.keys(a.tabs).find(n => n.trim().toLowerCase() === "bugs"); return k === undefined ? null : a.tabs[k]; };
+  let sid = find(await sheetIds(id));
   if (sid == null){
-    await batch(id, [{addSheet:{properties:{title:"Bugs", gridProperties:{rowCount:1000, columnCount:9}}}}]);
-    sid = (await sheetIds(id)).tabs.Bugs;
-    await batch(id, rowRequests(sid, 0, {0:"Time", 1:"Report ID", 2:"Sender ID", 3:"Name", 4:"App version", 5:"Page", 6:"What happened", 7:"Status", 8:"Device"}));
+    try{
+      await batch(id, [{addSheet:{properties:{title:"Bugs", gridProperties:{rowCount:1000, columnCount:9}}}}]);
+      sid = find(await sheetIds(id));
+      await batch(id, rowRequests(sid, 0, {0:"Time", 1:"Report ID", 2:"Sender ID", 3:"Name", 4:"App version", 5:"Page", 6:"What happened", 7:"Status", 8:"Device"}));
+    }catch(e){ if (!/already exists/i.test(String(e && (e.message || e)))) throw e; sid = find(await sheetIds(id)); }
   }
+  if (sid == null) throw {code:"tool_error", message:"the Bugs tab couldn't be found (Google sent: " + (await sheetIds(id)).got + ")"};
   return {id, sid};
 }
 function bugPanel(){
@@ -3176,9 +3223,9 @@ function viewAdd(){
   if (!ADD.targets) ADD.targets = defIds();
   V.innerHTML = `<h1>New item</h1><p class="lead">Add photos and a few details. Claude writes the listing, then one tap saves it to your tracker.</p>
   <div class="stack">
-    <div><label class="drop" for="ph"><strong>Add photos</strong><span class="muted">Front, back, label and any damage. Up to 24. Claude looks at the first 6, and all of them are saved.</span></label>
+    <div><label class="drop" for="ph"><strong>Add photos</strong><span class="muted">Front, back, label and any damage. Up to 24, and you can drag them in. Claude reads every photo you add, and all of them are saved.</span></label>
       ${S.photosOn?`<p class="muted" style="font-size:13.5px;margin:6px 0 0">Saved photos go into your Google Drive (Reseller Desk Photos folder), so they use your Google storage. Turn this off in Settings › Listings.</p>`:""}
-      <input id="ph" type="file" accept="image/*" multiple hidden><div class="thumbs" id="thumbs" style="margin-top:8px"></div>
+      <input id="ph" type="file" accept="image/*" multiple hidden><div class="thumbs" id="thumbs" style="margin-top:8px"></div><div id="useNote" style="margin-top:8px"></div>
       ${imgOK?"":`<p class="muted" style="font-size:14px;margin:6px 0 0" id="imgNote">${sample?"":"Photos need this app open on claude.ai."}</p>`}</div>
     <label class="f">What is it? <small>Optional. Model number, or anything Claude can't see.</small><input type="text" id="what" placeholder="e.g. Canon PowerShot A85 with 32MB CF card"></label>
     <div><div class="lab">Does it work?</div>
@@ -3200,7 +3247,9 @@ function viewAdd(){
     <div id="out" class="stack"></div>
   </div>`;
   renderThumbs();
-  $("#ph").onchange = e => { ADD.photos = [...ADD.photos, ...e.target.files].slice(0,24); renderThumbs(); e.target.value=""; };
+  const takePh = fs => { if (ADD.photos.length + fs.length > 24) toast("Only the first 24 photos are used"); ADD.photos = [...ADD.photos, ...fs].slice(0,24); renderThumbs(); };
+  $("#ph").onchange = e => { takePh([...e.target.files]); e.target.value=""; };
+  dropZone($("#ph").parentElement, takePh);
   $("#status").onclick = e => { const b = e.target.closest("button"); if(!b) return; ADD.status = b.dataset.v; $("#status").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); $("#faultsWrap").hidden = ADD.status!=="Faulty"; };
   if ($("#box")){ const boxDraw = () => { $("#box").innerHTML = boxChipsHtml(); const n = ADD.box, bits = n ? [boxTitle(n), boxCondInfo(n).cond ? "usually " + boxCondInfo(n).cond : "", boxNotes(n)].filter(Boolean) : []; $("#boxInfo").innerHTML = bits.length ? `<p class="muted" style="margin:6px 2px 0;font-size:14px">${esc(bits.join(" · "))}</p>` : ""; };
     boxDraw(); $("#box").onclick = e => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.new){ boxPanel(null, n => { if (n) ADD.box = n; boxDraw(); }); return; } ADD.box = b.dataset.v; boxDraw(); }; }
@@ -3228,7 +3277,7 @@ function dayAsk(){
     <div class="seg" id="dayPick" style="grid-template-columns:1fr 1fr"><button data-v="keep" aria-pressed="${keep}">${DAYS[d.getDay()].slice(0,3)} ${fmtD(d)}</button><button data-v="move" aria-pressed="${!keep}">${DAYS[c.getDay()].slice(0,3)} ${fmtD(c)}</button></div></div>`;
   $("#dayPick").onclick = e => { const b = e.target.closest("button"); if (!b) return; ADD.keepDate = b.dataset.v === "keep"; dayAsk(); };
 }
-function renderThumbs(){ const t = $("#thumbs"); if(!t) return; t.innerHTML = ADD.photos.map((f,i)=>`<button class="chip" style="padding:0;border:0;min-height:0" data-i="${i}" aria-label="Remove photo ${i+1}"><img src="${URL.createObjectURL(f)}" alt=""></button>`).join("") + (ADD.photos.length?`<span class="muted" style="font-size:14px;align-self:center">Tap a photo to remove it</span>`:"");
+function renderThumbs(){ const t = $("#thumbs"); if(!t) return; t.innerHTML = ADD.photos.map((f,i)=>`<button class="chip" style="padding:0;border:0;min-height:0" data-i="${i}" aria-label="Remove photo ${i+1}"><img src="${URL.createObjectURL(f)}" alt=""></button>`).join("") + (ADD.photos.length?`<span class="muted" style="font-size:14px;align-self:center">Tap a photo to remove it</span>`:""); const un = $("#useNote"); if (un) un.innerHTML = usageNote(ADD.photos.length, "Writing the listing");
   t.onclick = e => { const b = e.target.closest("button"); if(!b) return; ADD.photos.splice(+b.dataset.i,1); renderThumbs(); }; }
 function addFields(){ return {what:$("#what").value.trim(), faults:($("#faults")?.value||"").trim(), incl:$("#incl").value.trim(), extra:$("#extra").value.trim(), cost:$("#cost").value, dateTxt:$("#dateTxt").value.trim()}; }
 function need(f){
@@ -3278,7 +3327,7 @@ Reply with only this JSON:
 {"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","model_sure":true,"model_guess":"","label_hint":""}`;
   try{
     const opts = {modelTier:"default", cache:false};
-    if (ADD.photos.length && imgOK){ const imgs = []; for (const f of ADD.photos.slice(0,6)){ try{ const b64 = await shrink(f), bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); imgs.push(new Blob([u], {type:"image/jpeg"})); }catch{} }
+    if (ADD.photos.length && imgOK){ const imgs = []; for (const f of ADD.photos.slice(0,24)){ try{ const b64 = await shrink(f), bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); imgs.push(new Blob([u], {type:"image/jpeg"})); }catch{} }
       if (imgs.length) opts.images = imgs; }
     const out = await sampleJsonSkip(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
@@ -3480,7 +3529,7 @@ function itemPanel(r){
   $("#pMsg") && ($("#pMsg").onclick = () => { MSG_ROW = r.row; closePanel(); go("messages"); });
   $("#pDel").onclick = () => deletePanel([r]);
   $("#pEdit").onclick = () => editPanel(r); $("#pListing").onclick = () => listingPanel(r);
-  drawGallery(r, $("#phBox .galHost")); $("#pPhotos").onclick = () => addPhotosTo(r, $("#phBox"));
+  drawGallery(r, $("#phBox .galHost")); $("#pPhotos").onclick = () => addPhotosTo(r, $("#phBox")); dropZone($("#phBox"), fs => savePhotosInto(r, $("#phBox"), fs));
   $("#pCard") && ($("#pCard").onclick = () => cardPanel(r));
   extraRowVals(activeT(), r).then(({cols, vals}) => { const tb = document.querySelector("#overlay table.check tbody"); if (!tb || !cols.length) return;
     tb.insertAdjacentHTML("beforeend", cols.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(vals[xKey(c.name)] || "-")}</td></tr>`).join("")); }).catch(() => {});
@@ -4171,6 +4220,11 @@ function viewSettings(){
         <p class="muted" style="margin:0;font-size:14.5px">You have version ${APP_VERSION}. Go to About this app and tap <b>Check for app updates</b>.</p>
       </div>
     </div></details>
+    <details class="grp"><summary><span>Claude model<span class="gh">${MODEL_NAMES[modelKey()]}, ${effortKey()} effort</span></span></summary><div class="stack">
+      <div><div class="lab">Model</div><div class="chips" id="mdl">${[["haiku","Haiku 5.5","Cheapest"],["sonnet","Sonnet 5.5","Recommended"],["opus","Opus 5.5","Strongest"]].map(([k,n,d]) => `<button class="chip" data-v="${k}" aria-pressed="${modelKey()===k}">${n} · ${d}</button>`).join("")}</div></div>
+      <div><div class="lab">Effort</div><div class="chips" id="eff">${EFFORTS.map(k => `<button class="chip" data-v="${k}" aria-pressed="${effortKey()===k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div></div>
+      <p class="muted" style="margin:0;font-size:14.5px">Bigger models and higher effort use more of your Claude usage. Sonnet 5.5 at low effort is enough for most listings and screenshots. If a model isn't available on your plan, the app falls back to a basic one by itself. This applies on this account, on every device.</p>
+    </div></details>
     <details class="grp"><summary><span>About this app<span class="gh">Version ${APP_VERSION} and upgrades</span></span></summary><div class="stack">
       <p style="margin:0">Version ${APP_VERSION}. ${isAdmin()?"You send the updates.":"It checks for updates by itself and asks before changing anything."}</p>
       <p class="muted" style="margin:0;font-size:14px">App updates never change your sheets by themselves. When an update has something for your spreadsheets, the app asks first.</p>
@@ -4271,6 +4325,8 @@ function viewSettings(){
   $("#chUnhide") && ($("#chUnhide").onclick = () => { S.chatHide = []; save(); viewSettings(); toast("Everyone's messages show again"); });
   $("#chLeave") && ($("#chLeave").onclick = e => { const b = e.currentTarget; if (!b.dataset.sure){ b.dataset.sure = "1"; b.textContent = "Tap again to leave"; return; } S.chatJoined = false; save(); viewSettings(); toast("You've left the chat"); });
   $("#updBack").onclick = goBack;
+  const pickClaude = (id, key) => { const b = $(id); if (!b) return; b.onclick = e => { const c = e.target.closest("button"); if (!c) return; S[key] = c.dataset.v; save(); b.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === c)); const g = b.closest("details"), gh = g && g.querySelector(".gh"); if (gh) gh.textContent = `${MODEL_NAMES[modelKey()]}, ${effortKey()} effort`; toast(`Claude: ${MODEL_NAMES[modelKey()]}, ${effortKey()} effort`); }; };
+  pickClaude("#mdl", "model"); pickClaude("#eff", "effort");
   $("#updOn").onchange = e => { e.stopPropagation(); S.updOn = e.target.checked; save(); toast(S.updOn ? "You'll be told about new versions" : "Only when you check"); };
   $("#updNew").onclick = () => whatsNewPanel(null);
   $("#nyStart").onclick = () => checkNewYear(true).catch(e => toast(mcpMsg(e)));
@@ -4507,14 +4563,15 @@ async function linkPhotos(r, folderId){
 }
 async function savePhotos(r, files, onStep){
   const fid = await itemFolder(r, true); let n = 0;
-  const have = await dSearch(`parentId = '${fid}' and mimeType contains 'image/' and trashed = false`).catch(() => []);
+  const have = await dSearch(`parentId = '${fid}' and mimeType contains 'image/' and trashed = false`).catch(() => []); let skipped = 0;
   for (const f of files){
     n++; onStep && onStep(n, files.length);
-    const b64 = await shrink(f);
+    let b64; try{ b64 = await shrink(f); }catch{ skipped++; continue; }
     await driveCall("create_file", {title:`${r.sku || "item"} ${String(have.length + n).padStart(2,"0")}.jpg`, contentMimeType:"image/jpeg", base64Content:b64, disableConversionToGoogleType:true, parentId:fid});
   }
   try{ await linkPhotos(r, fid); }catch{}
   delete PHOTO_CACHE["list:"+fid];
+  if (skipped) toast(`Skipped ${skipped} photo${skipped > 1 ? "s" : ""} that couldn't be read`);
   return fid;
 }
 function b64From(p){
@@ -4551,14 +4608,16 @@ function openViewer(src){
 }
 function addPhotosTo(r, host){
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
-  inp.onchange = async () => {
-    const files = [...inp.files].slice(0,24); if (!files.length) return;
+  inp.onchange = () => savePhotosInto(r, host, [...inp.files]);
+  inp.click();
+}
+async function savePhotosInto(r, host, all){
+  { const files = all.slice(0,24); if (!files.length) return;
     const m = host.querySelector(".phMsg");
     try{ await savePhotos(r, files, (n, of) => { m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Saving photo ${n} of ${of}…</div>`; });
       m.innerHTML = `<div class="note ok">Photos saved in Google Drive › Reseller Desk Photos › ${esc(r.sku ? boxOf(r.sku) : "No box")}.</div>`; SALES = null; drawGallery(r, host.querySelector(".galHost"));
     }catch(e){ m.innerHTML = `<div class="note err">${esc(mcpMsg(e, GD))}</div>`; }
-  };
-  inp.click();
+  }
 }
 
 
@@ -4647,7 +4706,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.10.84";
+const APP_VERSION = "2026.11.10.85";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4664,6 +4723,7 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.85", items:[{text:"Photos that can't be read are skipped and the rest carry on. You can drag photos in. New item reads up to 24 photos. Every Claude job now shows a usage note and runs on Sonnet 5.5 at low effort. New: choose the model and effort in Settings › Claude model. Fixed two Admin errors (the Bugs tab and the update sheet tab)."}]},
   {v:"2026.11.10.84", items:[{text:"New item: the SKU is made as soon as the listing is written, so it's already there, and it's saved with the item."}]},
   {v:"2026.11.10.83", items:[{text:"Listings never say \"the seller states\" any more. They're written in your own voice."}]},
   {v:"2026.11.10.82", items:[{text:"New item: photos are shrunk and re-saved as normal JPEGs before they're read, so photos of screens and big photos stop failing."}]},
