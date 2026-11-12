@@ -427,6 +427,100 @@ body.wdragging{cursor:grabbing;-webkit-user-select:none;user-select:none}
   .selbar{left:232px;bottom:16px}
   #view:has(#write),#view:has(details.grp):not(:has(#homeBody,#soldBody,#expBody)){max-width:820px;margin-left:max(0px,calc((100% - 1400px) / 2));margin-right:auto}
 }
+
+/* ---------- v.88 look: soft cards (C) + top bar on computers (D) ---------- */
+:root{--r:16px;--r-sm:12px}
+:root:not([data-theme="dark"]){--bg:#F1F1EE}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111111}}
+.card,.wd,.listcard,details.grp,.hero,.ccard,.field,.kpis,.msg,.mq,.mcol{border-color:transparent!important;box-shadow:0 1px 2px rgb(0 0 0/.05),0 4px 14px -6px rgb(0 0 0/.08)}
+.drop{border:2px dashed var(--line)!important}
+header.top{border-bottom:0!important}
+.btn,.chip,.switch,.wedit{border-radius:999px!important}
+input[type=text],input[type=number],input[type=url],input[type=search],textarea,select{border-radius:12px!important}
+.seg{border-radius:999px!important}
+.note{border-radius:12px}
+@media (max-width:999px){
+ header.top{padding-block:8px!important}
+ h1{font-size:28px!important}
+ nav.tabs{left:12px!important;right:12px!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;border-radius:24px!important;border:0!important;box-shadow:0 10px 30px -8px rgb(0 0 0/.3)!important;padding:0 6px!important}
+ nav.tabs button{min-height:60px!important}
+ nav.tabs button[aria-current="page"]::after{display:none!important}
+ .selbar{bottom:calc(80px + env(safe-area-inset-bottom,0px))!important}
+ .toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))!important}
+ .wrap{padding-bottom:130px!important}
+}
+@media (min-width:1000px){
+ nav.tabs{top:12px!important;bottom:auto!important;left:16px!important;right:16px!important;width:auto!important;height:64px;padding:0 20px!important;border:0!important;border-radius:20px!important;box-shadow:0 1px 2px rgb(0 0 0/.05),0 8px 24px -10px rgb(0 0 0/.18)}
+ nav.tabs .in{flex-direction:row!important;align-items:center!important;max-width:1400px!important;margin:0 auto!important;gap:4px!important;height:100%}
+ nav.tabs .side-brand{margin:0 auto 0 0!important;order:-2}
+ nav.tabs button{min-height:40px!important;padding:8px 14px!important;border-radius:999px!important}
+ nav.tabs button.fab{order:9!important;margin:0 0 0 14px!important}
+ .wrap{margin-left:auto!important;margin-right:auto!important;padding-top:88px!important}
+ header.top{position:static!important}
+ header.top .brand{display:none}
+ .toast{left:50%!important}
+ .selbar{left:0!important}
+ .wtool{top:84px!important}
+}
+
+/* v.89: less empty space on computers */
+@media (min-width:1000px){
+ header.top{position:fixed!important;top:24px!important;left:calc(max(36px, (100vw - 1400px) / 2 + 20px) + 190px)!important;z-index:7!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important}
+ header.top .switch,header.top .gear{min-height:38px;background:var(--bg)}
+ .wrap{padding-top:92px!important}
+ #view .lead{display:none!important}
+ #view > .eyebrow:first-child{display:none}
+ h1{font-size:34px!important;margin:6px 0 14px!important}
+ .wd .wgrow{flex:0 0 6px!important}
+}
+
+/* v.90: use wide screens */
+@media (min-width:1000px){
+ .wrap>header.top,.wrap>#banner,.wrap>#view{max-width:none!important}
+ .wrap{padding-left:36px!important;padding-right:36px!important}
+ nav.tabs .in{max-width:none!important}
+ header.top{left:226px!important}
+ #view:has(#write),#view:has(details.grp):not(:has(#homeBody,#soldBody,#expBody)){max-width:900px!important;margin-left:auto!important;margin-right:auto!important}
+}
+
+.wb.editing,.wb.editing *{-webkit-user-drag:none;user-drag:none;-webkit-user-select:none;user-select:none}
+.wb.editing img,.wb.editing svg{pointer-events:none}
+
+@media (max-width:999px){
+ nav.tabs{transition:transform .22s ease, opacity .22s ease}
+ body.navhide nav.tabs{transform:translateY(calc(100% + 24px));opacity:0;pointer-events:none}
+ body.navhide .toast{bottom:calc(20px + env(safe-area-inset-bottom,0px))!important}
+}
+@media (prefers-reduced-motion:reduce){nav.tabs{transition:none}}
+
+.wmv{position:absolute;left:50%;bottom:-12px;transform:translateX(-50%);display:flex;gap:4px;z-index:2}
+.wmv button{width:34px;height:28px;border-radius:999px;border:2px solid var(--bg);background:var(--fg);color:var(--bg);font-weight:800;font-size:15px;line-height:1;display:grid;place-items:center;padding:0;box-shadow:0 2px 6px rgb(0 0 0/.18)}
+.wd.wfloat .wmv{display:none}
+
+.wrs{position:absolute;right:-6px;bottom:-6px;width:30px;height:30px;z-index:3;cursor:nwse-resize;touch-action:none;border-radius:0 0 18px 0}
+.wrs::after{content:"";position:absolute;right:8px;bottom:8px;width:14px;height:14px;border-right:3px solid var(--hl);border-bottom:3px solid var(--hl);border-radius:0 0 6px 0;filter:drop-shadow(0 1px 1px rgb(0 0 0/.35))}
+.wd.wresizing{animation:none!important;outline:2px dashed var(--hl);outline-offset:3px}
+.wd.wresizing::before{content:attr(data-dim);position:absolute;top:8px;left:50%;transform:translateX(-50%);background:var(--hl);color:var(--hl-ink);font:700 12px/1 var(--mono);padding:4px 8px;border-radius:999px;z-index:4}
+.wd.wfloat .wrs{display:none}
+
+/* v.95: no wiggle while editing, just a calm outline */
+.wb.editing .wd{animation:none!important;transform:none;outline:2px dashed var(--faint);outline-offset:3px;cursor:grab}
+.wb.editing .wd:hover{outline-color:var(--fg)}
+.wb.editing .wd.wph{outline:0}
+
+.wd svg.spark{width:100%;height:auto;max-height:100%}
+
+.wmv button{width:30px!important}
+
+/* v.99: widgets scroll inside when their content is taller than the widget */
+.wd-in{overflow-y:auto!important;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.wd-in::-webkit-scrollbar{width:6px}.wd-in::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.wd-in .wl,.wd-in .wtab,.wd-in .check{flex:none!important}
+.wb.editing .wd-in{overflow:hidden!important}
+
+/* v.100: a chart fills the widget's width; it is drawn for the space it gets, so it never shrinks into a narrow strip */
+.wd .chart{flex:none!important;display:block!important}
+.wd .chart svg{width:100%!important;height:auto!important;max-height:none!important}
 </style>
 
 <div class="wrap">
@@ -587,7 +681,12 @@ const defIds = () => { const d = S.trackers.filter(t => t.def).map(t => t.id); r
 /* ---------- dates & money ---------- */
 const pad = n => String(n).padStart(2,"0");
 const fmtD = d => `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
-const parseUK = s => { const m = /^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/.exec(String(s||"").trim()); return m ? new Date(+m[3], +m[2]-1, +m[1]) : null; };
+const parseUK = s => { s = String(s||"").trim().replace(/,/g, ""); let d, mo, y, x = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/.exec(s);
+  if (x){ d = +x[1]; mo = +x[2]; y = +x[3]; if (x[3].length === 2) y += 2000; }
+  else { x = /^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?\s+(\d{4}|\d{2})$/.exec(s); if (!x) return null; d = +x[1]; mo = MONTHS.findIndex(n => x[2].toLowerCase().startsWith(n.toLowerCase())) + 1; if (!mo) return null; y = +x[3]; if (x[3].length === 2) y += 2000; }
+  const dt = new Date(y, mo-1, d); return dt.getMonth() === mo-1 && dt.getDate() === d ? dt : null; };
+/* a date that is real but can't be right: more than a day ahead, or before 2000. Returns a short phrase for "Still needed: ..." or "". */
+const dateIssue = (d, label) => { if (!d) return ""; const t = new Date(); t.setHours(0,0,0,0); if (d > new Date(t.getFullYear(), t.getMonth(), t.getDate()+1)) return `a ${label} that isn't in the future`; if (d.getFullYear() < 2000) return `a ${label} after 1999`; return ""; };
 const serial = d => Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(1899,11,30)) / 86400000);
 const num = v => { if (typeof v === "number") return v; let s = String(v??"").trim(); const neg = /^\(.*\)$/.test(s) || /^-/.test(s.replace(/[^\d.\-]/g,"")); s = s.replace(/[^\d.]/g,""); const n = parseFloat(s); return isFinite(n) ? (neg ? -n : n) : 0; };
 const gbp = n => (n<0?"-£":"£") + Math.abs(n).toFixed(2);
@@ -602,6 +701,7 @@ async function copy(text, btn){
 }
 function openPanel(html){ $("#overlay").innerHTML = `<div class="sheet-panel" id="panelBg"><div class="pane" role="dialog" aria-modal="true">${html}</div></div>`; $("#panelBg").addEventListener("click", e=>{ if(e.target.id==="panelBg") closePanel(); }); }
 function closePanel(){ $("#overlay").innerHTML = ""; }
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; const v = document.querySelector(".viewer"); if (v){ const b = v.querySelector("button"); if (b) b.click(); else v.remove(); return; } if (document.querySelector("#overlay .sheet-panel")){ e.preventDefault(); closePanel(); } });
 const busy = (btn, on, label) => { if(!btn) return; if(on){ btn.dataset.l = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spin" aria-hidden="true"></span>${esc(label||"Working…")}`; } else { btn.disabled = false; btn.innerHTML = btn.dataset.l || btn.innerHTML; } };
 function pick(sel, set){ const el = $(sel); if(!el) return; el.onclick = e => { const b = e.target.closest("button"); if(!b) return; set(b.dataset.v); el.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b)); }; }
 
@@ -1295,6 +1395,7 @@ async function loadSales(force){
   const vc = m ? (m.s.via ?? -1) : viaIndex(head); VIA_COLS[t.id] = vc;
   const pc = m ? (m.s.ph ?? -1) : head.findIndex(x => /^\s*photos?\s*$/i.test(String(x||"")));
   const v = normS(t, raw);
+  if (!m && raw.length >= 940 && !window.__fullWarned){ window.__fullWarned = true; setTimeout(() => { try{ toast(`Your sheet has ${raw.length} rows. The app reads about 996, so add a new year or sheet soon.`); }catch{} }, 800); }
   const rc = (S.repairOff && S.repairOff[t.id]) ? [] : head.map((h,i) => /repair/i.test(String(h||"")) ? i : -1).filter(i => i >= 0);
   const adjP = (p, row) => { if (!rc.length || p === "" || p == null) return p; const rep = rc.reduce((a, i) => a + num((row||[])[i]), 0); return rep ? gbp(num(p) - rep) : p; };
   SALES = v.map((r,i) => ({row:i, item:r[0]||"", status:r[1]||"", cost:r[2]||"", sold:r[3]||"", ship:r[4]||"", fees:r[5]||"", profit:adjP(r[6]||"", raw[i]), bought:r[7]||"", soldOn:r[8]||"", days:r[9]||"", sku:r[10]||"", from:r[11]||"", via:vc>=0?((raw[i]||[])[vc]||""):"", photos:pc>=0?((raw[i]||[])[pc]||""):""})).filter(r => r.row > hr && String(r.item).trim());
@@ -1360,7 +1461,13 @@ async function firstEmptyRow(id, tab, col, max, start=1){
 const WB = {};
 let WEDIT = null, WDRAG = null, WHOLD = null, WSWALLOW = false;
 const WSZ = {s:"Small", m:"Medium", w:"Wide", l:"Large", xl:"Extra large"};
+/* row height: a bit shorter than a column is wide, much shorter on wide screens so tiles don't sit half empty */
+const wUnit = (W, g) => Math.min(g.cols > 8 ? 104 : 9999, Math.max(44, Math.floor((W - g.gap*(g.cols-1)) / g.cols * (g.cols > 8 ? .76 : g.cols > 4 ? .9 : .97))));
 function wGrid(W){ W = W || 360; const cols = W < 700 ? 4 : W < 1000 ? 8 : 12; return {cols, gap: cols===4 ? 12 : 16}; }
+/* a widget's span: its own width and height if it was resized by hand, else its preset size */
+function wSpanOf(x, cols){ if (x.cw && x.ch) return [Math.max(1, Math.min(x.cw, cols)), x.ch]; const s = wSpan(x.size, cols); return [Math.min(s[0], cols), s[1]]; }
+/* the preset that best fits a hand-made size, so the widget draws its best layout for that shape */
+function wNearest(d, cols, cw, ch){ let best = d.sizes[0], bd = 1e9; for (const z of wSizesFor(d, cols)){ const [a, b] = wSpan(z, cols); const dd = Math.abs(Math.min(a, cols) - cw) * 1.2 + Math.abs(b - ch); if (dd < bd){ bd = dd; best = z; } } return best; }
 function wSpan(sz, cols){ return sz==="s" ? [2,2] : sz==="m" ? [4,2] : sz==="l" ? [4,4] : sz==="w" ? [cols, 2] : [cols, 4]; }
 function wSizesFor(d, cols){ return cols > 4 ? d.sizes : d.sizes.filter(z => !(z==="xl" && d.sizes.includes("l")) && !(z==="w" && d.sizes.includes("m"))); }
 /* phone and computer keep separate layouts, so each can be laid out for its screen */
@@ -1369,7 +1476,7 @@ function wLayout(page){
   const B = WB[page], wide = (B.cols||4) > 4, saved = (S.layout||{})[wKey(page, B.cols||4)], seen = new Set();
   const list = Array.isArray(saved) ? saved : Array.isArray(B.def) ? B.def : (wide ? B.def.wide : B.def.phone);
   const out = list.filter(x => x && B.defs[x.id] && !seen.has(x.id) && seen.add(x.id))
-    .map(x => ({id:x.id, size: B.defs[x.id].sizes.includes(x.size) ? x.size : B.defs[x.id].sizes[0]}));
+    .map(x => ({id:x.id, size: B.defs[x.id].sizes.includes(x.size) ? x.size : B.defs[x.id].sizes[0], ...(x.cw && x.ch ? {cw:+x.cw, ch:+x.ch} : {}), ...(x.gc && x.gr ? {gc:+x.gc, gr:+x.gr} : {})}));
   if (page === "more" && Array.isArray(saved) && !S.moreV3) ["miles","own","sheet"].forEach(id => { if (B.defs[id] && !seen.has(id)) out.push({id, size:B.defs[id].sizes[0]}); });
   if (page === "home" && !Array.isArray(saved)) (S.ownWidgets || []).forEach(o => { if (B.defs["own_" + o.id] && !seen.has("own_" + o.id)) out.push({id:"own_" + o.id, size:"s"}); });
   if (page === "home" && Array.isArray(saved) && !S.homeAsk && B.defs.ask && !seen.has("ask")) out.unshift({id:"ask", size:"m"});
@@ -1381,8 +1488,8 @@ function wLayout(page){
   if (page === "more" && Array.isArray(saved) && !S.moreV7 && B.defs.admin && !seen.has("admin")) out.unshift({id:"admin", size:B.defs.admin.sizes[0]});
   return out;
 }
-function wSave(page, L){ if (page === "more"){ S.moreV3 = true; S.moreV4 = true; S.moreV5 = true; S.moreV8 = true; if (isAdmin()) S.moreV7 = true; } if (page === "home"){ S.homeAsk = true; S.homeGross = true; } S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
-function wDomLayout(page){ const B = WB[page], cur = wLayout(page); return [...B.host.querySelectorAll(".wb>.wd")].map(el => ({id:el.dataset.id, size:el.dataset.size || (cur.find(x=>x.id===el.dataset.id)||{}).size})); }
+function wSave(page, L){ if (page === "more"){ S.moreV3 = true; S.moreV4 = true; S.moreV5 = true; S.moreV8 = true; if (isAdmin()) S.moreV7 = true; } if (page === "home"){ S.homeAsk = true; S.homeGross = true; } S.layout = {...(S.layout||{}), [wKey(page, WB[page].cols||4)]: L.map(x => ({id:x.id, size:x.size, ...(x.cw && x.ch ? {cw:x.cw, ch:x.ch} : {}), ...(x.gc && x.gr ? {gc:x.gc, gr:x.gr} : {})}))}; clearTimeout(wSave.t); wSave.t = setTimeout(save, 600); }
+function wDomLayout(page){ const B = WB[page], cur = wLayout(page); return [...B.host.querySelectorAll(".wb>.wd")].map(el => ({id:el.dataset.id, size:el.dataset.size || (cur.find(x=>x.id===el.dataset.id)||{}).size, ...(el.dataset.cw ? {cw:+el.dataset.cw, ch:+el.dataset.ch} : {}), ...(el.dataset.gc ? {gc:+el.dataset.gc, gr:+el.dataset.gr} : {})})); }
 
 /* page code calls this with its widgets (defs), the standard layout (def) and optional click handling */
 function wBoard(host, page, defs, def){
@@ -1394,25 +1501,55 @@ function wBoard(host, page, defs, def){
 function wDraw(page){
   const B = WB[page]; if (!B || !B.host.isConnected) return;
   const W = B.host.clientWidth || cw(true); const {cols, gap} = wGrid(W);
-  const u = Math.max(44, Math.floor((W - gap*(cols-1)) / cols * (cols > 8 ? .86 : cols > 4 ? .95 : .97))); B.cols = cols; B.u = u; B.gap = gap;
+  const u = wUnit(W, {cols, gap}); B.cols = cols; B.u = u; B.gap = gap; B.colW = (W - gap*(cols-1)) / cols;
   const L = wLayout(page), ed = WEDIT===page;
   B.host.innerHTML = `${ed ? W_TOOL : ""}
-    <div class="wb${ed?" editing":""}" data-page="${page}" style="--g:${gap}px;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${u}px">${L.map(x => wCell(B, x)).join("")}</div>
+    <div class="wb${ed?" editing":""}" data-page="${page}" style="--g:${gap}px;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${u}px">${wPlace(L, cols).map(x => wCell(B, x)).join("")}</div>
     ${ed ? "" : `<div class="wfoot"><button class="wedit" data-wact="edit">Edit widgets</button></div>`}`;
   if (!L.length && !ed) B.host.querySelector(".wb").outerHTML = `<p class="muted" style="margin:4px 2px">No widgets on this page. Tap Edit widgets to add some.</p>`;
-  if (!B.ro){ B.ro = new ResizeObserver(() => { if (WDRAG || !B.host.isConnected) return; const g = wGrid(B.host.clientWidth); const nu = Math.floor((B.host.clientWidth - g.gap*(g.cols-1))/g.cols);
+  if (!B.ro){ B.ro = new ResizeObserver(() => { if (WDRAG || !B.host.isConnected) return; const g = wGrid(B.host.clientWidth); const nu = wUnit(B.host.clientWidth, g);
       if (g.cols!==B.cols || Math.abs(nu-B.u) > 3){ if (g.cols!==B.cols && WEDIT===page) WEDIT = null; clearTimeout(B.rt); B.rt = setTimeout(() => wDraw(page), 120); } }); B.ro.observe(B.host); }
 }
+/* place every widget: ones with a saved spot go there (the one being moved first), the rest fill the first free space */
+function wPlace(L, cols, first){
+  const occ = [], free = (r, c) => !(occ[r] && occ[r][c]), take = (r, c) => { (occ[r] = occ[r] || [])[c] = 1; };
+  const fits = (r, c, w, h) => { if (c < 0 || c + w > cols || r < 0) return false; for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) if (!free(r+i, c+j)) return false; return true; };
+  const put = (p, r, c) => { for (let i = 0; i < p._h; i++) for (let j = 0; j < p._w; j++) take(r+i, c+j); p._r0 = r; p._c0 = c; };
+  const P = L.map(x => { const [w, h] = wSpanOf(x, cols); return {...x, _w:w, _h:h}; });
+  /* the moved widget first, then the rest top to bottom so anything it lands on is pushed down (and pushes the ones below it) */
+  const placed = P.filter(p => p.gc && p.gr && p.id !== first).sort((a, b) => a.gr - b.gr || a.gc - b.gc);
+  const order = [...P.filter(p => p.id === first), ...placed, ...P.filter(p => p.id !== first && !(p.gc && p.gr))];
+  for (const p of order){ let done = false; const r0 = p.gr ? Math.max(0, p.gr - 1) : 0, cw = Math.max(0, Math.min(cols - p._w, (p.gc || 1) - 1));
+    const cs = [cw, ...Array.from({length: cols - p._w + 1}, (_, k) => k).filter(k => k !== cw).sort((a, b) => Math.abs(a - cw) - Math.abs(b - cw))];
+    if (p.id === first && fits(r0, cw, p._w, p._h)){ put(p, r0, cw); continue; }
+    for (let r = r0; r < 500 && !done; r++){ if (fits(r, cw, p._w, p._h)){ put(p, r, cw); done = true; break; } if (!p.gr) for (const c of cs) if (fits(r, c, p._w, p._h)){ put(p, r, c); done = true; break; } } }
+  /* drop empty rows left above everything */
+  const top = Math.min(...P.map(p => p._r0 ?? 0)); if (top > 0) P.forEach(p => p._r0 -= top);
+  return P;
+}
+/* computers, when not editing: also stretch each tile right and down into empty cells so the grid has no holes */
+function wPack(L, cols){
+  const P = wPlace(L, cols); if (!P.length) return P;
+  const occ = [], free = (r, c) => !(occ[r] && occ[r][c]), take = (r, c) => { (occ[r] = occ[r] || [])[c] = 1; };
+  P.forEach(p => { for (let i = 0; i < p._h; i++) for (let j = 0; j < p._w; j++) take(p._r0+i, p._c0+j); });
+  const maxR = Math.max(...P.map(p => p._r0 + p._h));
+  for (const p of P) while (p._c0 + p._w < cols){ const c = p._c0 + p._w; let ok = true; for (let i = 0; i < p._h; i++) if (!free(p._r0+i, c)) ok = false; if (!ok) break; for (let i = 0; i < p._h; i++) take(p._r0+i, c); p._w++; }
+  for (const p of P) while (p._r0 + p._h < maxR){ const r = p._r0 + p._h; let ok = true; for (let j = 0; j < p._w; j++) if (!free(r, p._c0+j)) ok = false; if (!ok) break; for (let j = 0; j < p._w; j++) take(r, p._c0+j); p._h++; }
+  return P;
+}
+/* put elements where a placement says, and remember the spot on each */
+function wApply(board, P){ P.forEach(p => { const el = board.querySelector(`:scope>.wd[data-id="${CSS.escape(p.id)}"]`); if (!el || p._r0 === undefined) return; el.style.gridColumn = `${p._c0+1} / span ${p._w}`; el.style.gridRow = `${p._r0+1} / span ${p._h}`; el.dataset.gc = p._c0+1; el.dataset.gr = p._r0+1; }); }
 function wCell(B, x){
-  const d = B.defs[x.id], cols = B.cols, [c, r] = wSpan(x.size, cols), ed = WEDIT===B.page;
-  const w = c*B.u + (c-1)*B.gap, h = r*B.u + (r-1)*B.gap;
-  let inner; try{ inner = d.render(x.size, {w: w-30, h: h-28, phone: cols===4}); }catch(e){ console.error(e); inner = `<p class="muted">Couldn't draw this widget.</p>`; }
+  const d = B.defs[x.id], cols = B.cols, ed = WEDIT===B.page; let [c, r] = wSpanOf(x, cols); if (x._w && x._r0 !== undefined){ c = x._w; r = x._h; }
+  const rsz = x.cw && x.ch ? wNearest(d, cols, Math.min(x.cw, cols), x.ch) : x.size;
+  const w = Math.floor(c*(B.colW || B.u) + (c-1)*B.gap), h = r*B.u + (r-1)*B.gap;
+  let inner; try{ inner = d.render(rsz, {w: w-30, h: h-28, phone: cols===4}); }catch(e){ console.error(e); inner = `<p class="muted">Couldn't draw this widget.</p>`; }
   const sizes = wSizesFor(d, cols);
-  return `<div class="wd sz-${x.size}${d.tap?" tap":""}" data-id="${esc(x.id)}" data-size="${x.size}" style="grid-column:span ${c};grid-row:span ${r}"${d.tap&&!ed?` role="button" tabindex="0" aria-label="${esc(d.name)}"`:""}>
+  return `<div class="wd sz-${rsz}${d.tap?" tap":""}" data-id="${esc(x.id)}" data-size="${x.size}"${x.cw && x.ch ? ` data-cw="${x.cw}" data-ch="${x.ch}"` : ""} ${x._r0 !== undefined ? ` data-gc="${x._c0+1}" data-gr="${x._r0+1}"` : ""} style="grid-column:${x._r0 !== undefined ? `${x._c0+1} / span ${c}` : `span ${c}`};grid-row:${x._r0 !== undefined ? `${x._r0+1} / span ${r}` : `span ${r}`}"${d.tap&&!ed?` role="button" tabindex="0" aria-label="${esc(d.name)}"`:""}>
     <div class="wd-in">${inner}</div>${ed ? wCtl(d, x.size, sizes) : ""}</div>`;
 }
-const W_TOOL = `<div class="wtool"><button class="btn small ghost" data-wact="add">+ Add widget</button><span class="muted">Drag to move</span><button class="btn small" data-wact="done">Done</button></div>`;
-function wCtl(d, size, sizes){ return `${d.fixed?"":`<button class="wx" data-wact="rm" aria-label="Remove ${esc(d.name)}">−</button>`}${sizes.length>1?`<button class="wsz" data-wact="size" aria-label="Change size of ${esc(d.name)}, now ${WSZ[size]}">${WSZ[size]}</button>`:""}`; }
+const W_TOOL = `<div class="wtool"><button class="btn small ghost" data-wact="add">+ Add widget</button><span class="muted">Drag anywhere, or use the arrows · drag the corner to resize</span><button class="btn small" data-wact="done">Done</button></div>`;
+function wCtl(d, size, sizes){ return `<span class="wmv"><button data-wact="mvl" aria-label="Move ${esc(d.name)} left">←</button><button data-wact="mvu" aria-label="Move ${esc(d.name)} up">↑</button><button data-wact="mvd" aria-label="Move ${esc(d.name)} down">↓</button><button data-wact="mvr" aria-label="Move ${esc(d.name)} right">→</button></span>${d.fixed?"":`<button class="wx" data-wact="rm" aria-label="Remove ${esc(d.name)}">−</button>`}<span class="wrs" data-wact="rs" role="button" aria-label="Resize ${esc(d.name)}" title="Drag to resize"></span>`; }
 /* animate everything that moves when the grid changes */
 function wFlip(board, fn){
   const els = [...board.children], a = new Map(els.map(e => [e, e.getBoundingClientRect()])); fn();
@@ -1430,8 +1567,12 @@ function wKeep(page, fn, id){
 function wEdit(page, id){
   const B = WB[page]; if (WEDIT && WEDIT!==page) wDone(); WEDIT = page; const board = B.host.querySelector(".wb");
   if (!board){ wDraw(page); return; }
+  /* on computers the resting layout is stretched to fill gaps; editing works on the real sizes, so redraw unless a tile is being held */
+  if (!id && B.cols > 8){ wKeep(page, () => wDraw(page)); return; }
+  const LM = {}; wLayout(page).forEach(x => LM[x.id] = x);
   wKeep(page, () => {
     board.classList.add("editing");
+    wApply(board, wPlace(wLayout(page), B.cols));
     board.querySelectorAll(":scope>.wd").forEach(el => { const d = B.defs[el.dataset.id]; if (!d) return; el.removeAttribute("role"); el.removeAttribute("tabindex"); el.removeAttribute("aria-label");
       el.insertAdjacentHTML("beforeend", wCtl(d, el.dataset.size, wSizesFor(d, B.cols))); });
     const f = B.host.querySelector(".wfoot"); if (f) f.remove(); B.host.insertAdjacentHTML("afterbegin", W_TOOL);
@@ -1459,6 +1600,11 @@ document.addEventListener("click", e => {
   if (a){ e.preventDefault(); e.stopPropagation(); const act = a.dataset.wact;
     if (act==="edit") return wEdit(page); if (act==="done") return wDone(); if (act==="add") return wGallery(page);
     const el = a.closest(".wd"), board = el.parentElement, L = wDomLayout(page), i = L.findIndex(x => x.id===el.dataset.id);
+    if (/^mv[lrud]$/.test(act)){ const it = L[i], cur = wPlace(L, B.cols).find(p => p.id === it.id), dc = act==="mvl" ? -1 : act==="mvr" ? 1 : 0, dr = act==="mvu" ? -1 : act==="mvd" ? 1 : 0;
+      it.gc = Math.max(1, Math.min(B.cols - cur._w + 1, cur._c0 + 1 + dc)); it.gr = Math.max(1, cur._r0 + 1 + dr);
+      L.forEach(p => { if (p !== it){ const q = wPlace(L, B.cols).find(z => z.id === p.id); } });
+      const keep = wPlace(L.map(p => p === it ? p : {...p}), B.cols); keep.forEach(p => { const o = L.find(z => z.id === p.id); if (o !== it){ o.gc = p._c0 + 1; o.gr = p._r0 + 1; } });
+      const P = wPlace(L, B.cols, it.id); wFlip(board, () => wApply(board, P)); wSave(page, wDomLayout(page)); return; }
     if (act==="rm"){ L.splice(i, 1); wSave(page, L); el.animate([{transform:"scale(1)",opacity:1},{transform:"scale(.6)",opacity:0}], {duration:160, easing:"ease-in"}).onfinish = () => wFlip(board, () => el.remove()); }
     if (act==="size"){ const d = B.defs[el.dataset.id], sizes = wSizesFor(d, B.cols), cur = L[i].size; const nx = sizes[(sizes.indexOf(cur)+1) % sizes.length];
       L[i].size = nx; wSave(page, L); const tmp = document.createElement("div"); tmp.innerHTML = wCell(B, L[i]); const nel = tmp.firstElementChild; wFlip(board, () => el.replaceWith(nel)); }
@@ -1486,16 +1632,44 @@ document.addEventListener("pointerdown", e => {
     if (dist > 9){ clearTimeout(WHOLD.t); WHOLD = null; } };
   const up = ev => { if (ev.pointerId!==st.id) return; if (WHOLD){ clearTimeout(WHOLD.t); WHOLD = null; }
     document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
-    if (WDRAG){ WSWALLOW = true; setTimeout(() => WSWALLOW = false, 400); wEnd(ev.type==="pointercancel"); } };
+    if (WDRAG){ WSWALLOW = true; setTimeout(() => WSWALLOW = false, 400); wEnd(ev.type==="pointercancel" && ev.pointerType!=="mouse"); } };
   document.addEventListener("pointermove", mv, {passive:false}); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
 });
-document.addEventListener("touchmove", e => { if (WDRAG) e.preventDefault(); }, {passive:false});
+document.addEventListener("touchmove", e => { if (WDRAG || WRS) e.preventDefault(); }, {passive:false});
+/* drag a widget's corner to resize it, snapping to the grid */
+let WRS = null;
+document.addEventListener("pointerdown", e => {
+  const hnd = e.target.closest && e.target.closest(".wrs"); if (!hnd || e.button > 0) return;
+  const el = hnd.closest(".wd"), board = el && el.parentElement, page = board && board.dataset.page, B = WB[page]; if (!B) return;
+  e.preventDefault(); e.stopPropagation();
+  const L = wDomLayout(page), x = L.find(i => i.id === el.dataset.id), [c0, r0] = wSpanOf(x, B.cols);
+  const colW = (board.clientWidth + B.gap) / B.cols, rowH = B.u + B.gap, minW = Math.min(2, B.cols), maxH = 10;
+  WRS = {el, page, x, c0, r0, c:c0, r:r0, sx:e.clientX, sy:e.clientY, id:e.pointerId};
+  el.classList.add("wresizing"); document.body.classList.add("wdragging");
+  try{ hnd.setPointerCapture(e.pointerId); }catch{}
+  const mv = ev => { if (!WRS || ev.pointerId !== WRS.id) return; ev.preventDefault();
+    const c = Math.max(minW, Math.min(B.cols, Math.round(c0 + (ev.clientX - WRS.sx) / colW))), r = Math.max(1, Math.min(maxH, Math.round(r0 + (ev.clientY - WRS.sy) / rowH)));
+    if (c !== WRS.c || r !== WRS.r){ WRS.c = c; WRS.r = r; el.style.gridColumn = `span ${c}`; el.style.gridRow = `span ${r}`; el.dataset.dim = `${c} × ${r}`; } };
+  const up = ev => { if (!WRS || ev.pointerId !== WRS.id) return; const R = WRS; WRS = null;
+    document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+    el.classList.remove("wresizing"); document.body.classList.remove("wdragging"); WSWALLOW = true; setTimeout(() => WSWALLOW = false, 300);
+    if (R.c === R.c0 && R.r === R.r0) return;
+    const L2 = wDomLayout(page), it = L2.find(i => i.id === el.dataset.id); it.cw = R.c; it.ch = R.r; it.size = wNearest(B.defs[it.id], B.cols, R.c, R.r);
+    const P = wPlace(L2, B.cols, it.id), me = P.find(p => p.id === it.id); const tmp = document.createElement("div"); tmp.innerHTML = wCell(B, me); const board2 = el.parentElement; el.replaceWith(tmp.firstElementChild); wFlip(board2, () => wApply(board2, P)); wSave(page, wDomLayout(page)); };
+  document.addEventListener("pointermove", mv, {passive:false}); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+}, true);
 document.addEventListener("selectstart", e => { if (WDRAG || WHOLD) e.preventDefault(); });
+/* phones: the bottom bar shows only near the top of the page (and while picking items or moving widgets) */
+{ let navRaf = 0; const navSync = () => { navRaf = 0; const hide = innerWidth < 1000 && scrollY > 40 && !WDRAG && !document.querySelector("#selHost .selbar") && !document.querySelector("#overlay .sheet-panel"); document.body.classList.toggle("navhide", hide); };
+  addEventListener("scroll", () => { if (!navRaf) navRaf = requestAnimationFrame(navSync); }, {passive:true}); addEventListener("resize", navSync); addEventListener("hashchange", () => setTimeout(navSync, 50)); }
+/* stop the browser's own drag-and-drop (text, images, links) taking over a widget move */
+document.addEventListener("dragstart", e => { if (WDRAG || WHOLD || (e.target.closest && e.target.closest(".wb.editing"))) e.preventDefault(); }, true);
 function wStart(el, ev){
   const r = el.getBoundingClientRect(), clone = el.cloneNode(true);
   clone.classList.add("wfloat"); clone.removeAttribute("role"); clone.querySelectorAll("[id]").forEach(x => x.removeAttribute("id"));
   Object.assign(clone.style, {position:"fixed", left:r.left+"px", top:r.top+"px", width:r.width+"px", height:r.height+"px", margin:"0", zIndex:"80", gridColumn:"auto", gridRow:"auto"});
   document.body.appendChild(clone); el.classList.add("wph");
+  try{ window.getSelection()?.removeAllRanges(); }catch{}
   WDRAG = {el, board: el.parentElement, page: el.parentElement.dataset.page, clone, ox: ev.clientX-r.left, oy: ev.clientY-r.top, last:null, y: ev.clientY, raf:0};
   document.body.classList.add("wdragging");
 }
@@ -1506,12 +1680,14 @@ function wMove(ev){
   wTarget(ev.clientX, ev.clientY);
 }
 function wTarget(x, y){
-  const D = WDRAG; if (!D) return; const kids = [...D.board.children].filter(k => k.classList.contains("wd"));
-  const t = kids.find(k => { if (k===D.el) return false; const r = k.getBoundingClientRect(); return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom; });
-  if (!t){ D.last = null; const br = D.board.getBoundingClientRect(); if (y > br.bottom && kids[kids.length-1]!==D.el) wFlip(D.board, () => D.board.appendChild(D.el)); return; }
-  if (t===D.last) return;
-  const i = kids.indexOf(D.el), j = kids.indexOf(t);
-  wFlip(D.board, () => j > i ? t.after(D.el) : t.before(D.el)); D.last = t;
+  const D = WDRAG; if (!D) return; const B = WB[D.page]; if (!B) return;
+  const br = D.board.getBoundingClientRect(), colW = (D.board.clientWidth + B.gap) / B.cols, rowH = B.u + B.gap;
+  if (!D.L){ D.L = wDomLayout(D.page); D.L.forEach(p => { if (!p.gc){ const q = wPlace(D.L, B.cols).find(z => z.id === p.id); if (q){ p.gc = q._c0+1; p.gr = q._r0+1; } } }); }
+  const it = D.L.find(p => p.id === D.el.dataset.id); if (!it) return; const [w] = wSpanOf(it, B.cols);
+  const c = Math.max(1, Math.min(B.cols - w + 1, Math.round((x - D.ox - br.left) / colW) + 1)), r = Math.max(1, Math.round((y - D.oy - br.top) / rowH) + 1);
+  if (D.pos === c + "," + r) return; D.pos = c + "," + r;
+  const L = D.L.map(p => p.id === it.id ? {...p, gc:c, gr:r} : {...p});
+  const P = wPlace(L, B.cols, it.id); wFlip(D.board, () => wApply(D.board, P));
 }
 function wScroll(){
   const D = WDRAG; if (!D){ return; } const edge = 80, top = D.y < edge + 40, bot = D.y > innerHeight - edge - 70;
@@ -1532,10 +1708,13 @@ function wbig(txt, w, sz, cls=""){ const base = {s:38, m:40, l:50, xl:54}[sz] ||
 const wmeta = t => `<div class="wmeta">${t}</div>`;
 const wgrow = `<div class="wgrow"></div>`;
 function wkpis(items, cols, hints){ return `<div class="wk${hints?" hints":""}" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${items.map(([l,v,c,hn]) => `<div><span>${esc(l)}</span><b class="${c||""}">${esc(v)}</b>${hints&&hn?`<i>${esc(hn)}</i>`:""}</div>`).join("")}</div>`; }
-function wfit(h, row){ return Math.max(1, Math.floor(h / row)); }
+/* lists draw up to 30 rows; whatever doesn't fit scrolls inside the widget */
+function wfit(h, row){ return Math.max(30, Math.floor(h / row)); }
 function wrows(rows, n, fn, empty){ return rows.length ? `<div class="wl">${rows.slice(0, n).map(fn).join("")}</div>` : `<p class="muted wempty">${esc(empty)}</p>`; }
 const wrow = (row, title, val, meta, cls="") => `<button class="wr" data-row="${row}"><span class="wt">${esc(title)}</span><span class="wv ${cls}">${esc(val)}</span><span class="wm">${meta}</span></button>`;
 function spark(vals, w, h, o={}){
+  /* room to spare: draw the full chart with months along the bottom */
+  if (o.labels && w >= 220 && h >= 100) return o.line ? areaChart(vals, o.labels, {now:o.now, h:Math.round(h - 12), w:Math.round(w)}) : barChart(vals, o.labels, {now:o.now, h:Math.round(h - 12), w:Math.round(w), values: w > 420});
   w = Math.max(40, Math.round(w)); h = Math.max(18, Math.round(h)); const n = vals.length || 1;
   const top = Math.max(0, ...vals), bot = Math.min(0, ...vals), rng = (top-bot) || 1, y = v => 3 + (top - v) / rng * (h - 6);
   if (o.line){
@@ -1567,8 +1746,8 @@ function homeWidgets(D){
     profit: {name:"Profit this year", desc:"Money made so far this year, with each month on a chart.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
       const big = wbig(gbp(D.netTotal), w, z==="w"?"l":z, D.netTotal<0?"neg":"");
       if (z==="w") return `<div class="wsplit"><div>${wh(`Money made in ${D.year}`)}${big}<p class="wsub">What buyers paid, minus stock, fees, postage${D.hasExp?" and expenses":""}.</p></div><div>${areaChart(D.net, MONTHS, {now:D.cm, h:Math.max(80, h-8), w:Math.round(w*0.62), label:`Profit each month in ${D.year}`})}</div></div>`;
-      if (z==="s") return wh(`Profit ${D.year}`) + big + wgrow + spark(D.net, w, h-84, {line:true, now:D.cm});
-      if (z==="m") return wh(`Profit ${D.year}`, `<em>${MONTHS[D.cm]} ${esc(short(D.net[D.cm]||0))}</em>`) + big + wgrow + spark(D.net, w, h-92, {line:true, now:D.cm});
+      if (z==="s") return wh(`Profit ${D.year}`) + big + wgrow + spark(D.net, w, h-84, {line:true, now:D.cm, labels:MONTHS});
+      if (z==="m") return wh(`Profit ${D.year}`, `<em>${MONTHS[D.cm]} ${esc(short(D.net[D.cm]||0))}</em>`) + big + wgrow + spark(D.net, w, h-92, {line:true, now:D.cm, labels:MONTHS});
       const sub = `<p class="wsub">What buyers paid, minus stock, fees, postage${D.hasExp?" and expenses":""}.</p>`;
       return wh(`Money made in ${D.year} so far`) + big + sub + wgrow + areaChart(D.net, MONTHS, {now:D.cm, h:Math.max(90, h - 150), w, label:`Profit each month in ${D.year}`}) + `<p class="cap wcap">Profit each month. The dot is ${FULLM[D.cm]}.</p>`; }},
     month: {name:"Month at a glance", desc:"Profit, items sold and sales for one month. Pick any month.", sizes:["s","m","l"], render:(z,{w,h}) => {
@@ -1579,7 +1758,7 @@ function homeWidgets(D){
       return wh(`${FULLM[D.cm]} at a glance`, monthSel) + wkpis(k, 2, true) + `<div class="wsec">Sold in ${FULLM[D.cm]}</div>` + wrows(D.soldNow, wfit(rest, 46), r => wrow(r.row, r.item, r.profit||r.sold, esc(r.soldOn), num(r.profit)<0?"neg":"pos"), "Nothing sold this month."); }},
     sales: {name:"Gross sales each month", desc:"What buyers paid you each month, before your costs.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
       const tot = D.salesM.reduce((a,b)=>a+b,0);
-      if (z==="s") return wh(`Taken ${D.year}`) + wbig(gbp(tot), w, z) + wgrow + spark(D.salesM, w, h-84, {now:D.cm});
+      if (z==="s") return wh(`Taken ${D.year}`) + wbig(gbp(tot), w, z) + wgrow + spark(D.salesM, w, h-84, {now:D.cm, labels:MONTHS});
       const cap = z==="m" || z==="w" ? "" : `<p class="cap wcap">What buyers paid each month for items, before your costs. Highlighted: ${FULLM[D.cm]}.</p>`;
       return wh("Gross sales each month", `<em>${esc(gbp(tot))}</em>`) + wgrow + barChart(D.salesM, MONTHS, {now:D.cm, w, h: h - 36 - (cap?40:0), values: z!=="m" || w > 400, label:`Gross sales each month in ${D.year}`}) + cap; }},
     ask: {name:"Ask Claude", desc:"Tell Claude what to do in your own words, with screenshots.", sizes:["m","s"], tap:() => askPanel(), render:(z) =>
@@ -1674,10 +1853,10 @@ function soldWidgets(X){
       const big = wbig(gbp(X.profit), w, z, X.profit<0?"neg":""), meta = `${X.sold.length} sold${X.ret.length?`, ${X.ret.length} returned`:""}`;
       if (z==="s") return wh("Profit") + wgrow + big + wmeta(`${meta} · ${esc(periodName(X.range))}`);
       if (z==="m") return wh(`Profit, ${periodName(X.range)}`) + big + wgrow + wmeta(`${meta}. What buyers paid, minus stock, fees and postage.`);
-      return wh(`Profit, ${periodName(X.range)}`) + big + wmeta(meta) + wgrow + spark(X.monthly, w, Math.max(40, h-150), {now:11}) + `<p class="cap wcap">Bars: profit each of the last 12 months.</p>`; }},
+      return wh(`Profit, ${periodName(X.range)}`) + big + wmeta(meta) + wgrow + spark(X.monthly, w, Math.max(40, h-150), {now:11, labels:X.labels}) + `<p class="cap wcap">Bars: profit each of the last 12 months.</p>`; }},
     numbers: {name:"Sales numbers", desc:"Sales, stock cost, fees, averages and your best sale.", sizes:["m","w","l"], render:(z) => z==="m" ? wkpis(k, 3) : z==="w" ? wkpis(k, 6, true) : wh("Sales numbers") + wkpis(k, 2, true)},
     chart: {name:"Profit each month", desc:"Bar chart of profit over the last 12 months.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
-      if (z==="s") return wh("Profit by month") + wgrow + spark(X.monthly, w, h-30, {now:11});
+      if (z==="s") return wh("Profit by month") + wgrow + spark(X.monthly, w, h-30, {now:11, labels:X.labels});
       const cap = z==="m" || z==="w" ? "" : `<p class="cap wcap">A red bar means returns cost more than you made that month.</p>`;
       return wh("Profit each month", "<em>last 12 months</em>") + wgrow + barChart(X.monthly, X.labels, {now:11, w, h: h-36-(cap?36:0), values: z!=="m" || w > 400, label:"Profit each month, last 12 months"}) + cap; }},
     sites: {name:"By site", desc:"Where your sales came from, from the Sold on column.", sizes:["m","l"], render:(z,{h}) => {
@@ -1724,7 +1903,7 @@ function expWidgets(Z){
     total: {name:"Total spent", desc:"Everything spent in the period you picked.", sizes:["s","m"], render:(z,{w}) => wh(z==="s"?"Spent":`Total spent, ${periodName(Z.range)}`) + (z==="s"?wgrow:"") + wbig(gbp(Z.total), w, z) + (z==="s"?"":wgrow) +
       wmeta(`${Z.ex.length} expense${Z.ex.length===1?"":"s"}${Z.hasBoots?` and ${Z.bt.length} carboot day${Z.bt.length===1?"":"s"}`:""}${z==="s"?` · ${esc(periodName(Z.range))}`:""}`)},
     chart: {name:"Spending each month", desc:"Bar chart of spending over the last 12 months.", sizes:["s","m","w","l","xl"], render:(z,{w,h}) => {
-      if (z==="s") return wh("Spending") + wgrow + spark(Z.spend, w, h-30, {now:11});
+      if (z==="s") return wh("Spending") + wgrow + spark(Z.spend, w, h-30, {now:11, labels:Z.lm.map(x => x.label)});
       const cap = z==="m" || z==="w" ? "" : `<p class="cap wcap">Carboot entry fees included. Stock you bought isn't counted.</p>`;
       return wh("Spending each month", "<em>last 12 months</em>") + wgrow + barChart(Z.spend, Z.lm.map(x=>x.label), {now:11, w, h: h-36-(cap?36:0), values: z!=="m" || w > 400, label:"Spending each month, last 12 months"}) + cap; }},
     cats: {name:"What it went on", desc:"Spending by type, biggest first.", sizes:["s","m","l"], render:(z,{w,h}) => {
@@ -2126,7 +2305,7 @@ async function milePanel(r){
   $("#mlSave").onclick = async () => {
     const btn = $("#mlSave"), m = $("#mlMsg"); const d = parseUK($("#mlDate").value), from = $("#mlFrom").value.trim(), to = $("#mlTo").value.trim(), reason = $("#mlWhyT").value.trim() || why;
     let mi = num($("#mlMi").value); if (!r && $("#mlRet").checked) mi = Math.round(mi * 2 * 10) / 10;
-    const miss = []; if (!d) miss.push("date (DD/MM/YYYY)"); if (!from) miss.push("where from"); if (!to) miss.push("where to"); if (!(mi > 0)) miss.push("miles");
+    const miss = []; if (!d) miss.push("date (DD/MM/YYYY)"); else { const di = dateIssue(d, "date"); if (di) miss.push(di); } if (!from) miss.push("where from"); if (!to) miss.push("where to"); if (!(mi > 0)) miss.push("miles");
     const targets = r ? [t] : readTargets("ml", ids); if (!targets.length) miss.push("which tracker");
     if (miss.length){ m.innerHTML = `<div class="note warn">Still needed: ${esc(miss.join(", "))}.</div>`; return; }
     busy(btn, true, "Saving…"); const done = [];
@@ -2272,7 +2451,7 @@ function viewSheet(){
     busy(b, true, "Working it out…");
     try{
       const have = [...new Set(S.trackers.flatMap(t => (EXTRA[t.id] || []).map(c => c.name)))];
-      const o = await sample.json(`A reseller wants to track something new in their sales spreadsheet. Their request: "${what.replace(/"/g, "'")}"
+      trackUse(0); const o = await sample.json(`A reseller wants to track something new in their sales spreadsheet. Their request: "${what.replace(/"/g, "'")}"
 Columns the sheet already has: Item, Status, Cost, Sold Price, Shipping, Fees, Profit, Date Bought, Date Sold, Days to Sell, SKU, Bought from, Condition, Notes, Sent with, Sold on${have.length ? ", " + have.join(", ") : ""}.
 Reply with only JSON: {"kind":"column" or "tab","name":"short Title Case heading, 1-3 words","choices":[up to 8 sensible dropdown choices, or [] if it is free text, a number or a date],"show":["new" if known when buying/listing,"sold" if known when it sells,"edit"],"heads":[column headings, only if kind is tab],"note":"one short sentence saying what you set up"}.
 Use kind "tab" only for a separate list that isn't about one item (e.g. repairs log). If it already exists in the columns above, set "name" to that column and choices [].`, {modelTier:"default", cache:false});
@@ -2486,9 +2665,12 @@ function usageNote(photos, what){
   const u = S.use && S.use.w === useWeek() ? S.use : {n:0, p:0}, big = photos > 6;
   return `<div class="note ${big ? "warn" : "info"}" style="font-size:14px"><b>${esc(what || "This")} uses some of your Claude usage.</b>${photos ? ` Reading ${photos} photo${photos > 1 ? "s" : ""} costs more than a plain request${big ? " (a lot more, so only add the photos that help)" : ""}.` : ""} This week this app has made about ${u.n} Claude request${u.n === 1 ? "" : "s"}${u.p ? ` and read ${u.p} photo${u.p === 1 ? "" : "s"}` : ""}. Claude is set to ${MODEL_NAMES[modelKey()]} at ${effortKey()} effort (change it in Settings › Claude model). The app can't see your real remaining limit, so check your usage in Claude if you're running low.</div>`;
 }
+/* test each photo on its own, 3 at a time: one read per photo, however many are bad */
 async function goodPhotos(arr){
-  try{ await sample.json('Reply with {"ok":true}', {modelTier:"default", cache:false, images:arr}); return arr; }
-  catch(e){ if (!(e && e.code === "image_rejected")) throw e; if (arr.length < 2) return []; const m = arr.length >> 1; return [...await goodPhotos(arr.slice(0, m)), ...await goodPhotos(arr.slice(m))]; }
+  const ok = new Array(arr.length).fill(false); let next = 0;
+  const worker = async () => { while (next < arr.length){ const i = next++; try{ await sample.json('Reply with {"ok":true}', {modelTier:"quick", cache:false, images:[arr[i]]}); ok[i] = true; }catch(e){ if (!(e && e.code === "image_rejected")) throw e; } } };
+  await Promise.all([worker(), worker(), worker()]);
+  return arr.filter((_, i) => ok[i]);
 }
 async function sampleJsonSkip(prompt, opts){
   const imgs = opts.images || []; trackUse(imgs.length);
@@ -2496,10 +2678,16 @@ async function sampleJsonSkip(prompt, opts){
   catch(e){
     if (!(e && e.code === "image_rejected" && imgs.length)) throw e;
     let good = imgs.length > 1 ? await goodPhotos(imgs) : [];
-    const o2 = {...opts}; let out;
-    if (good.length) o2.images = good; else delete o2.images;
-    try{ out = await sample.json(prompt, o2); }
-    catch(e2){ if (e2 && e2.code === "image_rejected" && o2.images){ good = []; delete o2.images; out = await sample.json(prompt, o2); } else throw e2; }
+    /* every photo is fine on its own, so it is the batch that is too big: try the first half, then half again */
+    if (imgs.length > 1 && good.length === imgs.length){
+      for (let n = Math.ceil(imgs.length / 2); n >= 1; n = n > 1 ? Math.ceil(n / 2) : 0){
+        try{ const out = await sample.json(prompt, {...opts, images:imgs.slice(0, n)}); toast(`Only the first ${n} photo${n > 1 ? "s" : ""} could be read together`); return out; }
+        catch(e2){ if (!(e2 && e2.code === "image_rejected")) throw e2; }
+      }
+      good = [];
+    }
+    const o2 = {...opts}; if (good.length) o2.images = good; else delete o2.images;
+    const out = await sample.json(prompt, o2);
     const n = imgs.length - good.length; if (n) toast(good.length ? `Skipped ${n} photo${n > 1 ? "s" : ""} that couldn't be read` : "No photo could be read, so this used your notes only");
     return out;
   }
@@ -2811,8 +2999,17 @@ async function viewInsights(force){
     <div id="insSortNote"></div>
     <div id="insBody" style="margin-top:16px"><p class="muted"><span class="spin" aria-hidden="true"></span> Loading…</p></div>`;
   bindPeriod("ir", v => { INS_RANGE = v; drawInsights(); });
-  try{ await loadSales(force); if (CUR==="insights"){ drawInsights(); autoSort(); } }
+  try{ await loadSales(force); if (CUR==="insights"){ drawInsights(); offerSort(); } }
   catch(e){ if (CUR==="insights") $("#insBody").innerHTML = `<div class="note err">${esc(mcpMsg(e))}</div>`; }
+}
+/* nothing is sent to Claude until they tap Sort now */
+function offerSort(){
+  if (INS_SORTING || S.groupMode === "words") return;
+  const stale = S.groupsV !== 3, todo = stale ? insTitles() : insUnsorted(), n = $("#insSortNote");
+  if (!todo.length){ if (stale) autoSort(); return; }
+  if (!n) return;
+  n.innerHTML = `<div class="note info" style="margin-top:14px"><b>${todo.length} item${todo.length === 1 ? " isn't" : "s aren't"} sorted yet.</b> <button class="btn small" id="insGo" style="margin-top:8px">Sort now</button></div>${usageNote(0, "Sorting your items")}`;
+  $("#insGo").onclick = () => autoSort();
 }
 /* Claude sorts any items it hasn't seen yet, by what each item is. Runs by itself unless they chose title words. */
 async function autoSort(all){
@@ -2825,7 +3022,7 @@ async function autoSort(all){
   const gm = (all || stale) ? {} : {...(S.groups||{})}, cm = (all || stale) ? {} : {...(S.conds||{})}; let missed = 0;
   try{
     for (let i = 0; i < todo.length; i += 40){
-      if (note()) note().innerHTML = `<div class="note info" style="margin-top:14px"><span class="spin" aria-hidden="true"></span> Claude is sorting your items by what they are and their condition… ${Math.min(i, todo.length)} of ${todo.length}</div>`;
+      if (note()) note().innerHTML = `<div class="note info" style="margin-top:14px"><span class="spin" aria-hidden="true"></span> Claude is sorting your items by what they are and their condition… ${Math.min(i, todo.length)} of ${todo.length}</div>${usageNote(0, "Sorting your items")}`;
       const part = todo.slice(i, i + 40);
       const known = [...new Set([...Object.values(S.groupFix||{}), ...Object.values(gm)])].slice(0, 30);
       trackUse(0); const out = await sample.json(`You sort a second-hand reseller's stock so they can see which kinds of item sell best, and in what condition.
@@ -2964,13 +3161,13 @@ function movePanel(r){
 }
 function sortHtml(){
   const words = S.groupMode === "words", nFix = new Set([...Object.keys(S.groupFix||{}), ...Object.keys(S.condFix||{})]).size;
-  return `<h2>How items are sorted</h2><p class="sub2">${words ? "By words in the title (laptop, camera, Nokia…). Claude sorts much better, by what each item actually is." : "Claude sorts each item by what it actually is and the condition its title gives, and sorts new items when you open this page."}${nFix ? ` ${nFix} item${nFix===1?" is":"s are"} in groups you picked, and they stay put.` : ""}</p>
+  return `<h2>How items are sorted</h2><p class="sub2">${words ? "By words in the title (laptop, camera, Nokia…). Claude sorts much better, by what each item actually is." : "Claude sorts each item by what it actually is and the condition its title gives, and sorts new items when you open this page. This uses some of your Claude usage."}${nFix ? ` ${nFix} item${nFix===1?" is":"s are"} in groups you picked, and they stay put.` : ""}</p>
     <div class="stack">${words ? `<button class="btn wide ghost" id="insClaude">Let Claude sort them</button>` : `<button class="btn wide ghost" id="insSort">Sort everything again with Claude</button><button class="btn wide ghost" id="insWords">Use title words instead</button>`}
     ${nFix ? `<button class="btn wide ghost" id="insUnfix">Undo all my moves</button>` : ""}<div id="insMsg"></div></div>`;
 }
 function bindSort(){
   $("#insWords") && ($("#insWords").onclick = () => { S.groupMode = "words"; save(); drawInsights(); toast("Using title words"); });
-  $("#insClaude") && ($("#insClaude").onclick = () => { S.groupMode = "claude"; save(); drawInsights(); autoSort(); });
+  $("#insClaude") && ($("#insClaude").onclick = () => { S.groupMode = "claude"; save(); drawInsights(); offerSort(); });
   $("#insSort") && ($("#insSort").onclick = () => autoSort(true));
   $("#insUnfix") && ($("#insUnfix").onclick = () => { if (!confirm("Put every item you changed back to how Claude sorted it?")) return; S.groupFix = {}; S.condFix = {}; save(); drawInsights(); autoSort(); toast("Your moves were undone"); });
 }
@@ -3114,14 +3311,14 @@ function hits(f, n, vals, labels, fmt, xs){
   const bw = f.iw / n;
   return vals.map((v,i) => { const cx = xs ? xs[i] : f.L + bw*i + bw/2; const yp = Math.min(f.y(v), f.y(0)); return `<rect class="hit" x="${(cx-bw/2).toFixed(1)}" y="${f.T}" width="${bw.toFixed(1)}" height="${f.ih}" data-tip="${esc(labels[i])}: ${esc(fmt(v))}" data-x="${(cx/f.W*100).toFixed(1)}" data-y="${(yp/f.H*100).toFixed(1)}"><title>${esc(labels[i])}: ${esc(fmt(v))}</title></rect>`; }).join("");
 }
-function xLabels(f, labels, xs, every=1){ return labels.map((l,i) => i%every ? "" : `<text x="${xs[i].toFixed(1)}" y="${f.H-6}" text-anchor="middle">${esc(l.slice(0,3))}</text>`).join(""); }
+function xLabels(f, labels, xs, every=1){ const last = labels.length-1; return labels.map((l,i) => i%every ? "" : `<text x="${(i===last && xs[i] > f.W-14 ? f.W-1 : xs[i]).toFixed(1)}" y="${f.H-6}" text-anchor="${i===last && xs[i] > f.W-14 ? "end" : "middle"}">${esc(l.slice(0,3))}</text>`).join(""); }
 function barChart(vals, labels, o={}){
   const n = vals.length, f = frame(vals, o.h||170, o.w||cw(false), 22), bw = f.iw/n, w = Math.max(4, Math.min(22, bw*.62)), r = Math.min(4, w/2), y0 = f.y(0);
   const xs = vals.map((_,i) => f.L + bw*i + bw/2);
   const bars = vals.map((v,i) => { if (!v) return ""; const x = xs[i]-w/2, yv = f.y(v), hgt = Math.abs(yv-y0); const rr = Math.min(r, hgt);
     const d = v>0 ? `M${x},${y0}V${yv+rr}Q${x},${yv} ${x+rr},${yv}H${x+w-rr}Q${x+w},${yv} ${x+w},${yv+rr}V${y0}Z` : `M${x},${y0}V${yv-rr}Q${x},${yv} ${x+rr},${yv}H${x+w-rr}Q${x+w},${yv} ${x+w},${yv-rr}V${y0}Z`;
     return `<path d="${d}" fill="${v<0?"var(--chart-neg)":"var(--chart)"}" opacity="${o.now===undefined||o.now===i?1:.55}"/>`; }).join("");
-  return `<div class="chart"><svg viewBox="0 0 ${f.W} ${f.H}" role="img" aria-label="${esc(o.label||"Bar chart")}">${f.grid}${bars}${o.values===false?"":vals.map((v,i) => v && bw>=22 ? `<text class="vl" x="${xs[i].toFixed(1)}" y="${(v>0 ? f.y(v)-5 : f.y(v)+12).toFixed(1)}" text-anchor="middle">${esc(short(v))}</text>` : "").join("")}${xLabels(f, labels, xs)}${hits(f, n, vals, labels, o.fmt||gbp, xs)}</svg><div class="tip" hidden></div></div>`;
+  return `<div class="chart"><svg viewBox="0 0 ${f.W} ${f.H}" role="img" aria-label="${esc(o.label||"Bar chart")}">${f.grid}${bars}${o.values===false?"":vals.map((v,i) => v && bw>=22 ? `<text class="vl" x="${xs[i].toFixed(1)}" y="${(v>0 ? f.y(v)-5 : f.y(v)+12).toFixed(1)}" text-anchor="middle">${esc(short(v))}</text>` : "").join("")}${xLabels(f, labels, xs, bw < 26 ? 2 : 1)}${hits(f, n, vals, labels, o.fmt||gbp, xs)}</svg><div class="tip" hidden></div></div>`;
 }
 function areaChart(vals, labels, o={}){
   const n = vals.length, f = frame(vals, o.h||150, o.w||cw(true), 22), id = "ag"+(++CH_ID);
@@ -3182,7 +3379,7 @@ async function viewHome(){
     const recent = sold.slice().sort((a,b) => (parseUK(b.soldOn)||0)-(parseUK(a.soldOn)||0)).slice(0,4);
     const oldest = listed.filter(r => parseUK(r.bought)).sort((a,b) => parseUK(a.bought)-parseUK(b.bought)).slice(0,3);
     const age = r => Math.round((today()-parseUK(r.bought))/86400000);
-    const checkRows = ["Year-to-date (eBay app)","Orders (eBay app)","Active listings","Sold (all)","Sold (all, incl. mum's)","Returned"].filter(k => k in m);
+    const checkRows = ["Year-to-date (eBay app)","Orders (eBay app)","Active listings","Sold (all)","Sold (all, incl. mum's)","Returned"].filter(k => k in m && (k !== "Sold (all, incl. mum's)" || (isAdmin() && new Date().getFullYear() <= 2026))); /* the mum's-account row is the owner's own, and only for 2026 */
     const netTotal = m["Net profit"] ? num(m["Net profit"]) : net.reduce((a,b)=>a+b,0);
     const D = {year, cm, lastM, net, netTotal, hasExp: !!m["Net profit"], salesM, soldNow, listed, stockVal, avgDays, sold, m, checkRows, age, all: SALES || [], hasVia: (VIA_COLS[t.id] ?? -1) >= 0,
       recent: sold.slice().sort((a,b) => (parseUK(b.soldOn)||0)-(parseUK(a.soldOn)||0)).slice(0,12),
@@ -3283,7 +3480,7 @@ function addFields(){ return {what:$("#what").value.trim(), faults:($("#faults")
 function need(f){
   const miss = [];
   if (!ADD.status) miss.push("whether it works"); if (ADD.status==="Faulty" && !f.faults) miss.push("what's wrong with it");
-  if (f.cost==="") miss.push("what you paid"); if (!parseUK(f.dateTxt)) miss.push("the date bought (DD/MM/YYYY)");
+  if (f.cost==="") miss.push("what you paid"); else if (num(f.cost) < 0) miss.push("a cost that isn't negative"); if (!parseUK(f.dateTxt)) miss.push("the date bought (DD/MM/YYYY)"); else { const di = dateIssue(parseUK(f.dateTxt), "date bought"); if (di) miss.push(di); }
   if (!ADD.from) miss.push("where you bought it"); if (useBox() && !ADD.box) miss.push("which box"); if (!useBox()) ADD.box = "";
   if (!ADD.photos.length && !f.what) miss.push("photos or what the item is");
   return miss;
@@ -3327,7 +3524,7 @@ Reply with only this JSON:
 {"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","model_sure":true,"model_guess":"","label_hint":""}`;
   try{
     const opts = {modelTier:"default", cache:false};
-    if (ADD.photos.length && imgOK){ const imgs = []; for (const f of ADD.photos.slice(0,24)){ try{ const b64 = await shrink(f), bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); imgs.push(new Blob([u], {type:"image/jpeg"})); }catch{} }
+    if (ADD.photos.length && imgOK){ const imgs = []; for (const [pi, f] of ADD.photos.slice(0,24).entries()){ try{ const b64 = await shrink(f, pi < 8 ? 1600 : 1024), bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); imgs.push(new Blob([u], {type:"image/jpeg"})); }catch{} }
       if (imgs.length) opts.images = imgs; }
     const out = await sampleJsonSkip(prompt, opts);
     if (!out || !out.title) throw {code:"invalid_json"};
@@ -3574,6 +3771,9 @@ function editPanel(r){
     const via = $("#xVia") ? $("#xVia").value : r.via; const viaChanged = via !== r.via;
     const XNEW = readExtra($("#xExtra")); const xChanged = Object.keys(XNEW).filter(k => XNEW[k] !== String(XOLD[k] ?? "").trim());
     if (cells[0]===null) bad.push("a title");
+    ({2:"a cost", 3:"a sold price", 4:"postage", 5:"fees"}) && Object.entries({2:"a cost", 3:"a sold price", 4:"postage", 5:"fees"}).forEach(([k, n]) => { if (typeof cells[k]==="number" && cells[k] < 0) bad.push(`${n} that isn't negative`); });
+    { const bd = parseUK($("#xBought").value), sd = parseUK($("#xSoldOn").value); const i1 = dateIssue(bd, "date bought"), i2 = dateIssue(sd, "date sold"); if (i1) bad.push(i1); if (i2) bad.push(i2); if (bd && sd && sd < bd) bad.push("a date sold that isn't before the date bought"); }
+    if (typeof cells[10]==="string"){ const n4 = s => (/(?:^|-)\s*(\d{4,5})\s*$/.exec(String(s||"")) || [])[1]; const nn = n4(cells[10]); if (nn && nn !== n4(r.sku)){ try{ if ((await usedNumbers()).has(nn)) bad.push(`a SKU number that hasn't been used (${nn} is already on another item)`); }catch{} } }
     if (typeof cells[10]==="string" && (SALES||[]).some(x => x.row!==r.row && x.sku.trim()===cells[10])) bad.push("a SKU that isn't already used");
     if (bad.length){ msg.innerHTML = `<div class="note warn">Please give ${esc(bad.join(" and "))}.</div>`; return; }
     if (!Object.keys(cells).length && !viaChanged && !xChanged.length){ msg.innerHTML = `<div class="note info">Nothing has changed.</div>`; return; }
@@ -3699,9 +3899,9 @@ async function soldPanel(r){
 }
 async function readShot(e){
   const file = e.target.files[0]; if(!file) return; const m = $("#shotMsg");
-  m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Claude is reading the screenshot…</div>`;
+  m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Claude is reading the screenshot…</div>${usageNote(1, "Reading a screenshot")}`;
   try{
-    const o = await sample.json(`This is a screenshot of an eBay order (UK). Read it and reply with only JSON:
+    trackUse(1); const o = await sample.json(`This is a screenshot of an eBay order (UK). Read it and reply with only JSON:
 {"sku":"Custom label (SKU) or empty","title":"item title","item_price":number (item price only, no postage, no buyer protection fee, no VAT),"seller_fees":number (only the seller's own costs: final value fee, ad fee, other selling costs added together; 0 if none shown),"postage_label":number (postage label the seller paid, 0 if none),"sold_date":"DD/MM/YYYY","order_number":"","buyer_name":"name from the Buyer field, not the address","delivery_service":"","condition":""}
 Use empty strings or 0 for anything not visible. Never guess.`, {images:[file], modelTier:"default", cache:false});
     SHOT = o;
@@ -3725,6 +3925,9 @@ async function saveSold(){
   if (!r){ msg.innerHTML = `<div class="note warn">Choose which item sold.</div>`; return; }
   if (price===""){ msg.innerHTML = `<div class="note warn">Type what it sold for.</div>`; return; }
   if (!d){ msg.innerHTML = `<div class="note warn">Type the date sold as DD/MM/YYYY.</div>`; return; }
+  { const key = `${price}|${$("#sFees").value}|${$("#sShip").value}`; if ((num(price) === 0 || num($("#sFees").value) > num(price)) && window.__sellWarn !== key){ window.__sellWarn = key; msg.innerHTML = `<div class="note warn">${num(price) === 0 ? "The price is £0." : "The fees are more than the price."} Tap Save again if that's right.</div>`; return; } }
+  if (num(price) < 0 || num($("#sShip").value) < 0 || num($("#sFees").value) < 0){ msg.innerHTML = `<div class="note warn">The price, postage and fees can't be negative.</div>`; return; }
+  { const di = dateIssue(d, "date sold"); if (di){ msg.innerHTML = `<div class="note warn">Please give ${esc(di)}.</div>`; return; } const b0 = parseUK(r.bought); if (b0 && d < b0){ msg.innerHTML = `<div class="note warn">That's before the date bought (${esc(r.bought)}). Check the date sold.</div>`; return; } }
   if (!targets.length){ msg.innerHTML = `<div class="note warn">Pick at least one tracker.</div>`; return; }
   busy(btn, true, "Saving…"); const done = [], noVia = []; const XS = readExtra($("#sExtra"));
   try{
@@ -3769,9 +3972,9 @@ function cardPanel(r){
   let kCond = "";
   $("#kShot") && ($("#kShot").onchange = async e => {
     const file = e.target.files[0]; if (!file) return; const m = $("#kShotMsg");
-    m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Claude is reading the screenshot…</div>`;
+    m.innerHTML = `<div class="note info"><span class="spin" aria-hidden="true"></span> Claude is reading the screenshot…</div>${usageNote(1, "Reading a screenshot")}`;
     try{
-      const o = await sample.json(`This is a screenshot of an online sale order (eBay, Vinted, Depop or similar, UK). Read it and reply with only JSON:
+      trackUse(1); const o = await sample.json(`This is a screenshot of an online sale order (eBay, Vinted, Depop or similar, UK). Read it and reply with only JSON:
 {"buyer_name":"name from the Buyer field, not the address","order_number":"","delivery_service":"","order_date":"DD/MM/YYYY","condition":""}
 Use empty strings for anything not visible. Never guess.`, {images:[file], modelTier:"default", cache:false});
       let n = 0;
@@ -4073,7 +4276,7 @@ function expensePanel(r){
   const findExp = v => v.findIndex((x,k) => k>0 && num(x[1])===num(r.amount) && String(x[2]||"").trim().toLowerCase()===String(r.reason).trim().toLowerCase() && String(x[0]||"").trim()===String(r.date).trim());
   $("#eSave").onclick = async () => {
     const btn = $("#eSave"), msg = $("#eMsg"); const amt = $("#eAmt").value, d = parseUK($("#eDate").value), why = $("#eWhy").value.trim();
-    const miss = []; if (amt==="") miss.push("amount"); if(!d) miss.push("date (DD/MM/YYYY)"); if(!why) miss.push("what it was"); if(!EXP.cat) miss.push("type");
+    const miss = []; if (amt==="") miss.push("amount"); else if (!(num(amt) > 0)) miss.push("an amount above 0"); if(!d) miss.push("date (DD/MM/YYYY)"); else { const di = dateIssue(d, "date"); if (di) miss.push(di); } if(!why) miss.push("what it was"); if(!EXP.cat) miss.push("type");
     const targets = readTargets("exp", ids); if (!targets.length) miss.push("which tracker");
     if (miss.length){ msg.innerHTML = `<div class="note warn">Still needed: ${esc(miss.join(", "))}.</div>`; return; }
     busy(btn, true, "Saving…"); const done = [];
@@ -4540,9 +4743,9 @@ async function itemFolderFind(r, create){
   try{ return await makeFolder(itemFolderName(r), parent || await boxFolder(box)); }
   catch(e){ /* the saved folders may have been deleted: find them again once */ return await makeFolder(itemFolderName(r), await boxFolder(box, true)); }
 }
-async function shrink(file){
+async function shrink(file, max=1600){
   let src; try{ src = await createImageBitmap(file, {imageOrientation:"from-image"}); }catch{ src = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); }); }
-  const w = src.width, h = src.height, k = Math.min(1, 1600 / Math.max(w, h));
+  const w = src.width, h = src.height, k = Math.min(1, max / Math.max(w, h));
   const c = document.createElement("canvas"); c.width = Math.round(w*k); c.height = Math.round(h*k); c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
   const blob = await new Promise(res => c.toBlob(res, "image/jpeg", .85));
   return await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
@@ -4655,7 +4858,7 @@ Rules:
 
 Reply with only this JSON:
 {"title":"...","item_specifics":[["Brand","..."]],"condition":"...","condition_description":"...","description_html":"...","note":"one short line saying what you changed"}`;
-  const out = await sample.json(prompt, {modelTier:"default", cache:false});
+  trackUse(0); const out = await sample.json(prompt, {modelTier:"default", cache:false});
   if (!out || !out.title) throw {code:"invalid_json"};
   return out;
 }
@@ -4706,7 +4909,7 @@ async function listingPanel(r){
 
 
 /* ---------- UPDATES: copies other people installed check a public "Reseller Desk version" sheet and can update themselves ---------- */
-const APP_VERSION = "2026.11.10.85";
+const APP_VERSION = "2026.11.10.100";
 const SITE = "https://szymonszmulik.github.io";
 const UPD_SHEET = "1sXc93RKZsp_G3q7vOIfu_kVuSEjIPxoxtxsQq4jNd8g", UPD_FOLDER = "1yF1ZJ85ZU706_WyKf-dlFp81OTU4317u";
 const RESET = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
@@ -4723,6 +4926,20 @@ async function checkUpdate(manual){
 }
 /* WHAT'S NEW: shown once after an update. Anything that adds a section asks whether to show it. Add an entry here with each version that brings something new. */
 const WHATS_NEW = [
+  {v:"2026.11.10.100", items:[{text:"Charts in widgets always use the full width, whatever shape you make the widget."}]},
+  {v:"2026.11.10.99", items:[{text:"Widgets scroll inside when everything doesn't fit, so lists like Recent sales show more than the first few."}]},
+  {v:"2026.11.10.98", items:[{text:"Tidy-up of the Check against eBay widget."}]},
+  {v:"2026.11.10.97", items:[{text:"Widgets can go anywhere: drag one to any spot on the grid, for example two short ones stacked under each other. The arrow buttons now move a widget left, right, up or down. Widgets look exactly the same in Edit widgets and normally: no more automatic stretching."}]},
+  {v:"2026.11.10.96", items:[{text:"Small charts in widgets show the months and amounts when the widget is big enough, and always fill the widget's width."}]},
+  {v:"2026.11.10.95", items:[{text:"Editing widgets no longer shakes them. Widgets you can move get a dashed outline instead, so they are easy to grab."}]},
+  {v:"2026.11.10.94", items:[{text:"Widgets are fully resizable: in Edit widgets, drag the corner of any widget to make it any width or height. Each one also has ← and → buttons to move it, as well as dragging. Fixed: on computers, moving widgets did nothing since the gap-filling update."}]},
+  {v:"2026.11.10.92", items:[{text:"Moving widgets is more reliable on computers: the browser can no longer grab the tile and stop the move. On phones the bottom bar now only shows when you are at the top of the page, to give you more room."}]},
+  {v:"2026.11.10.91", items:[{text:"The new look (top bar on computers, soft cards, full width, no gaps) now actually shows. It was missing from the last few versions."}]},
+  {v:"2026.11.10.90", items:[{text:"Big screens: the app now uses the whole width, and on computers tiles stretch to fill any gaps so there are no empty corners."}]},
+  {v:"2026.11.10.89", items:[{text:"Less empty space on computers: widgets are shorter, the tracker switch sits in the top bar, and the page intro lines are gone."}]},
+  {v:"2026.11.10.88", items:[{text:"New look: softer rounded cards and buttons, a floating menu bar on phones, and on computers the menu now runs across the top so your numbers get the full width."}]},
+  {v:"2026.11.10.87", items:[{text:"Dates can be typed more ways now: 5/11/26, 5-11-2026 and 5 Nov 2026. Selling something for £0, or with fees bigger than the price, asks you to tap Save again to confirm. What sells no longer uses Claude by itself: it shows a Sort now button first, with a usage note. You get a warning when your sheet is nearly full."}]},
+  {v:"2026.11.10.86", items:[{text:"Dates are checked properly now: 31/02 is refused instead of quietly becoming March, and dates in the future are refused. Negative prices, costs and expenses are refused. Editing a SKU can no longer reuse a number from another box. Escape closes panels. Skipping an unreadable photo costs less usage. Every Claude job now shows a usage note."}]},
   {v:"2026.11.10.85", items:[{text:"Photos that can't be read are skipped and the rest carry on. You can drag photos in. New item reads up to 24 photos. Every Claude job now shows a usage note and runs on Sonnet 5.5 at low effort. New: choose the model and effort in Settings › Claude model. Fixed two Admin errors (the Bugs tab and the update sheet tab)."}]},
   {v:"2026.11.10.84", items:[{text:"New item: the SKU is made as soon as the listing is written, so it's already there, and it's saved with the item."}]},
   {v:"2026.11.10.83", items:[{text:"Listings never say \"the seller states\" any more. They're written in your own voice."}]},
